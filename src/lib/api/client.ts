@@ -70,7 +70,7 @@ function mapModel(raw: RawModel): ModelInfo {
 export async function fetchModels(signal?: AbortSignal): Promise<ModelInfo[]> {
   const { signal: s, cancel } = withTimeout(DEFAULT_TIMEOUT_MS, signal);
   try {
-    const res = await fetch(apiUrl('/api/models'), {
+    const res = await fetch(apiUrl('/api/tags'), {
       method: 'GET',
       headers: { Accept: 'application/json' },
       signal: s,
@@ -102,7 +102,7 @@ export async function streamChat(
 ): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(apiUrl('/api/chat/stream'), {
+    res = await fetch(apiUrl('/api/chat'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson, text/event-stream' },
       body: JSON.stringify({ ...req, stream: true }),
@@ -153,7 +153,7 @@ export async function chat(req: ChatRequest, signal?: AbortSignal): Promise<stri
 export async function ping(signal?: AbortSignal): Promise<boolean> {
   const { signal: s, cancel } = withTimeout(8000, signal);
   try {
-    const res = await fetch(apiUrl('/api/models'), { method: 'GET', signal: s });
+    const res = await fetch(apiUrl('/api/tags'), { method: 'GET', signal: s });
     return res.ok;
   } catch {
     return false;
