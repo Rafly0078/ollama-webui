@@ -44,10 +44,35 @@
   --content-muted: 82 82 91;
   --content-subtle: 140 140 150;
   --border-alpha: 0.1;
+  /* Darker tonal variants of the semantic colors so status text/glyphs hold
+     AA contrast on light surfaces (dark theme keeps the brighter 500 shades). */
+  --success: 22 163 74; /* green-600 */
+  --warning: 217 119 6; /* amber-600 */
+  --error: 220 38 38; /* red-600 */
 }
 
 * {
   border-color: rgb(var(--border) / var(--border-alpha));
+}
+
+/* Native pointer + tap behaviour for every control. Buttons default to the
+   arrow cursor otherwise, and touch-action removes the 300ms tap delay. */
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  a[href],
+  label[for],
+  summary {
+    cursor: pointer;
+  }
+  button,
+  [role='button'],
+  a,
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
+  }
 }
 
 body {

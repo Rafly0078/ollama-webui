@@ -168,7 +168,7 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
   if (!open) return null;
   return (
     <aside
-      className="glass relative z-20 h-full shrink-0 overflow-hidden border-r border-border motion-safe:animate-fade-in"
+      className="glass relative z-20 h-full shrink-0 overflow-hidden border-0 motion-safe:animate-fade-in"
       style={{ width: SIDEBAR_WIDTH }}
     >
       {content}

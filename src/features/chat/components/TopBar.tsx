@@ -63,7 +63,7 @@ export function TopBar({ conversation, onToggleSidebar, onOpenParams, onOpenSyst
   };
 
   return (
-    <header className="glass sticky top-0 z-30 flex items-center gap-2 border-b border-border px-2 py-2 sm:px-3">
+    <header className="glass sticky top-0 z-30 flex items-center gap-2 border-0 px-2 py-2 sm:px-3">
       <Tooltip label="Toggle sidebar" side="bottom">
         <button onClick={onToggleSidebar} className="btn-ghost h-9 w-9 rounded-xl" aria-label="Toggle sidebar">
           <PanelLeft className="h-5 w-5" />
@@ -170,7 +170,7 @@ function MenuItem({
       role="menuitem"
       onClick={onClick}
       className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-border/5 ${
-        danger ? 'text-rose-300 hover:bg-rose-500/10' : 'text-content'
+        danger ? 'text-error hover:bg-error/10' : 'text-content'
       }`}
     >
       <Icon className="h-4 w-4 shrink-0" />

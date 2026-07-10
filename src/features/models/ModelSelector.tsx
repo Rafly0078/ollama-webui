@@ -82,7 +82,7 @@ export function ModelSelector({ value, onChange }: Props) {
             )}
 
             {error && !loading && (
-              <div className="flex items-start gap-2 p-3 text-sm text-amber-300">
+              <div className="flex items-start gap-2 p-3 text-sm text-warning">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <div>
                   <p>{error}</p>

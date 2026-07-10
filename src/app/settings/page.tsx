@@ -251,7 +251,7 @@ export default function SettingsPage() {
               e.target.value = '';
             }}
           />
-          <div className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+          <div className="mt-4 rounded-xl border border-error/20 bg-error/5 p-4">
             <p className="text-sm font-medium text-content">Reset settings</p>
             <p className="mt-0.5 text-xs text-content-muted">
               Restores default theme, prompts and parameters. Conversations are kept.
@@ -368,7 +368,7 @@ function PresetManager({ presets }: { presets: PromptPreset[] }) {
             />
             <button
               onClick={() => removePreset(p.id)}
-              className="btn-ghost h-8 w-8 shrink-0 rounded-lg text-content-subtle hover:text-rose-400"
+              className="btn-ghost h-8 w-8 shrink-0 rounded-lg text-content-subtle hover:text-error"
               aria-label={`Delete ${p.name}`}
             >
               <Trash2 className="h-4 w-4" />

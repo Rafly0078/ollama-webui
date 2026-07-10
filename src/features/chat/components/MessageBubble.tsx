@@ -153,13 +153,13 @@ export const MessageBubble = memo(function MessageBubble({
             </div>
           </div>
         ) : message.error ? (
-          <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-sm text-rose-300">
+          <div className="flex items-start gap-2 rounded-xl border border-error/30 bg-error/5 p-3 text-sm text-error">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             <div className="flex-1">
               <p>{message.error}</p>
               <button
                 onClick={() => actions.onRetry(message.id)}
-                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-rose-500/10 px-2.5 py-1 text-xs font-medium text-rose-200 hover:bg-rose-500/20"
+                className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-error/10 px-2.5 py-1 text-xs font-medium text-error hover:bg-error/20"
               >
                 <RefreshCw className="h-3.5 w-3.5" /> Retry
               </button>
@@ -198,7 +198,7 @@ export const MessageBubble = memo(function MessageBubble({
         {showActions && (
           <div className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100">
             <ActionBtn label={copied ? 'Copied' : 'Copy'} onClick={copy}>
-              {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+              {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
             </ActionBtn>
             {isUser && (
               <ActionBtn label="Edit" onClick={() => { setDraft(message.content); setEditing(true); }}>

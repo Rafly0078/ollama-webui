@@ -122,7 +122,7 @@ export function ChatListItem({ conversation, active, onSelect }: Props) {
         <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={() => deleteConversation(conversation.id)}
-            className="rounded-md bg-rose-500/20 px-2 py-0.5 text-xs text-rose-200 hover:bg-rose-500/30"
+            className="rounded-md bg-error/20 px-2 py-0.5 text-xs text-error hover:bg-error/30"
           >
             <Check className="h-3.5 w-3.5" />
           </button>
@@ -159,7 +159,7 @@ function IconBtn({
       }}
       className={cn(
         'flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-border/10',
-        danger ? 'text-content-subtle hover:text-rose-400' : 'text-content-subtle hover:text-content',
+        danger ? 'text-content-subtle hover:text-error' : 'text-content-subtle hover:text-content',
       )}
     >
       {children}

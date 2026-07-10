@@ -41,11 +41,11 @@ export function Mermaid({ code }: { code: string }) {
 
   if (error) {
     return (
-      <div className="my-4 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-300">
+      <div className="my-4 flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/5 p-3 text-sm text-warning">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
           <p className="font-medium">Couldn&apos;t render Mermaid diagram</p>
-          <pre className="mt-1 overflow-x-auto text-xs text-amber-300/70">{code}</pre>
+          <pre className="mt-1 overflow-x-auto text-xs text-warning/70">{code}</pre>
         </div>
       </div>
     );

@@ -223,7 +223,7 @@ export function ChatInput({
                 <span className="max-w-[120px] truncate text-content-muted">{a.name}</span>
                 <button
                   onClick={() => setAttachments((prev) => prev.filter((x) => x.id !== a.id))}
-                  className="rounded-md p-0.5 text-content-subtle hover:text-rose-400"
+                  className="rounded-md p-0.5 text-content-subtle hover:text-error"
                   aria-label={`Remove ${a.name}`}
                 >
                   <X className="h-3.5 w-3.5" />

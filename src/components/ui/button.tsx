@@ -16,7 +16,7 @@ const variants: Record<Variant, string> = {
   ghost: 'btn-ghost',
   surface: 'btn-surface',
   danger:
-    'btn bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 border border-rose-500/20',
+    'btn bg-error/10 text-error hover:bg-error/20 border border-error/20',
 };
 
 const sizes: Record<Size, string> = {

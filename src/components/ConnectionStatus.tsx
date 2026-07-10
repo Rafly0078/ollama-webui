@@ -56,9 +56,9 @@ export function ConnectionStatus() {
   }, [online, check]);
 
   const config = {
-    checking: { color: 'bg-amber-400', label: 'Checking connection…' },
-    online: { color: 'bg-emerald-400', label: 'Connected to API' },
-    offline: { color: 'bg-rose-500', label: 'API unreachable — retrying…' },
+    checking: { color: 'bg-warning', label: 'Checking connection…' },
+    online: { color: 'bg-success', label: 'Connected to API' },
+    offline: { color: 'bg-error', label: 'API unreachable — retrying…' },
     unconfigured: { color: 'bg-content-subtle', label: 'API URL not configured' },
   }[status];
 

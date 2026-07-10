@@ -70,9 +70,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 <Icon
                   className={
                     t.kind === 'success'
-                      ? 'mt-0.5 h-5 w-5 shrink-0 text-emerald-400'
+                      ? 'mt-0.5 h-5 w-5 shrink-0 text-success'
                       : t.kind === 'error'
-                        ? 'mt-0.5 h-5 w-5 shrink-0 text-rose-400'
+                        ? 'mt-0.5 h-5 w-5 shrink-0 text-error'
                         : 'mt-0.5 h-5 w-5 shrink-0 text-accent'
                   }
                 />
