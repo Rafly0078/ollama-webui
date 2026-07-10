@@ -1,0 +1,170 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, m } from 'framer-motion';
+import { Check, ChevronDown, Cpu, Eye, RefreshCw, AlertCircle } from 'lucide-react';
+import type { ModelInfo } from '@/types';
+import { useModels } from './use-models';
+import { formatBytes, formatNumber } from '@/lib/utils/format';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils/cn';
+
+interface Props {
+  value: string;
+  onChange: (model: string) => void;
+}
+
+export function ModelSelector({ value, onChange }: Props) {
+  const { models, loading, error, reload } = useModels();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  // Auto-select the first model once loaded if none is set.
+  useEffect(() => {
+    if (!value && models.length > 0 && models[0]) onChange(models[0].name);
+  }, [value, models, onChange]);
+
+  const active = models.find((m) => m.name === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="btn-surface h-9 max-w-[60vw] gap-2 px-3 sm:max-w-xs"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <Cpu className="h-4 w-4 shrink-0 text-accent" />
+        <span className="truncate font-medium">
+          {active ? active.label : loading ? 'Loading…' : value || 'Select model'}
+        </span>
+        {active?.supportsVision && <Eye className="h-3.5 w-3.5 shrink-0 text-accent-soft" />}
+        <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')} />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <m.div
+            initial={{ opacity: 0, y: -8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            role="listbox"
+            className="popover scrollbar-thin absolute left-0 top-full z-50 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-2xl p-1.5 shadow-card"
+          >
+            <div className="flex items-center justify-between px-2 py-1.5">
+              <span className="text-xs font-medium text-content-muted">
+                {models.length} model{models.length === 1 ? '' : 's'}
+              </span>
+              <button
+                onClick={reload}
+                className="rounded-md p-1 text-content-subtle hover:text-content"
+                aria-label="Reload models"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+              </button>
+            </div>
+
+            {loading && (
+              <div className="space-y-1.5 p-1.5">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                ))}
+              </div>
+            )}
+
+            {error && !loading && (
+              <div className="flex items-start gap-2 p-3 text-sm text-amber-300">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p>{error}</p>
+                  <button onClick={reload} className="mt-1 text-xs text-accent hover:underline">
+                    Try again
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!loading && !error && models.length === 0 && (
+              <p className="p-3 text-sm text-content-muted">
+                No models found. Pull one with <code className="text-accent">ollama pull llama3.2</code>.
+              </p>
+            )}
+
+            {models.map((model) => (
+              <ModelRow
+                key={model.name}
+                model={model}
+                selected={model.name === value}
+                onSelect={() => {
+                  onChange(model.name);
+                  setOpen(false);
+                }}
+              />
+            ))}
+          </m.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ModelRow({
+  model,
+  selected,
+  onSelect,
+}: {
+  model: ModelInfo;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const chips = [
+    model.details.parameterSize,
+    model.details.quantizationLevel,
+    model.details.family,
+    model.size ? formatBytes(model.size) : undefined,
+    model.contextLength ? `${formatNumber(model.contextLength)} ctx` : undefined,
+  ].filter(Boolean) as string[];
+
+  return (
+    <button
+      role="option"
+      aria-selected={selected}
+      onClick={onSelect}
+      className={cn(
+        'flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-white/5',
+        selected && 'bg-accent/10',
+      )}
+    >
+      <div className="mt-0.5 h-4 w-4 shrink-0">
+        {selected && <Check className="h-4 w-4 text-accent" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <span className="truncate font-medium text-content">{model.label}</span>
+          {model.supportsVision && <Eye className="h-3.5 w-3.5 shrink-0 text-accent-soft" />}
+        </div>
+        {chips.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {chips.map((c, i) => (
+              <span
+                key={i}
+                className="rounded-md bg-white/5 px-1.5 py-0.5 text-[0.68rem] text-content-subtle"
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </button>
+  );
+}

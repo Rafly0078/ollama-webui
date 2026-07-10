@@ -1,0 +1,70 @@
+'use client';
+
+import { cn } from '@/lib/utils/cn';
+
+/** Labeled range slider with live value + numeric input for precision. */
+export function Slider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  hint,
+  format = (v) => String(v),
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  hint?: string;
+  format?: (v: number) => string;
+}) {
+  const pct = ((value - min) / (max - min)) * 100;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium text-content">{label}</label>
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(e) => onChange(clamp(Number(e.target.value), min, max))}
+          className="input h-7 w-20 px-2 py-0 text-right text-xs tabular-nums"
+          aria-label={`${label} value`}
+        />
+      </div>
+      <input
+        type="range"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+        aria-label={label}
+        className={cn(
+          'h-1.5 w-full cursor-pointer appearance-none rounded-full outline-none',
+          '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:shadow-subtle [&::-webkit-slider-thumb]:transition-transform [&::-webkit-slider-thumb]:hover:scale-110',
+          '[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-accent',
+        )}
+        style={{
+          background: `linear-gradient(to right, rgb(var(--accent)) ${pct}%, rgb(var(--content-subtle) / 0.25) ${pct}%)`,
+        }}
+      />
+      <div className="flex justify-between text-xs text-content-subtle">
+        <span>{format(min)}</span>
+        {hint && <span className="text-content-muted">{hint}</span>}
+        <span>{format(max)}</span>
+      </div>
+    </div>
+  );
+}
+
+function clamp(v: number, min: number, max: number) {
+  if (Number.isNaN(v)) return min;
+  return Math.min(max, Math.max(min, v));
+}

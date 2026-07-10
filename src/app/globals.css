@@ -1,0 +1,257 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Design tokens. Colors are RGB triplets so Tailwind's <alpha-value> works.
+   Palette per brief: Zinc surfaces + violet accent. Accent is themeable at
+   runtime by ThemeManager via --accent / --accent-soft.
+--------------------------------------------------------------------------- */
+:root {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --accent: 124 58 237; /* #7C3AED */
+  --accent-soft: 168 85 247; /* #A855F7 */
+  --accent-fg: 255 255 255;
+
+  --success: 34 197 94; /* #22C55E */
+  --warning: 245 158 11; /* #F59E0B */
+  --error: 239 68 68; /* #EF4444 */
+}
+
+/* Dark theme (default) */
+.dark,
+:root {
+  --surface: 9 9 11; /* #09090B background */
+  --surface-raised: 24 24 27; /* #18181B card */
+  --surface-overlay: 32 32 36; /* menus / hover */
+  --surface-mid: 17 17 19; /* #111113 chrome */
+  --border: 255 255 255;
+  --content: 244 244 245;
+  --content-muted: 161 161 170;
+  --content-subtle: 113 113 122;
+  --border-alpha: 0.06; /* rgba(255,255,255,.06) */
+}
+
+.light {
+  --surface: 250 250 250;
+  --surface-raised: 255 255 255;
+  --surface-overlay: 255 255 255;
+  --surface-mid: 244 244 245;
+  --border: 9 9 11;
+  --content: 24 24 27;
+  --content-muted: 82 82 91;
+  --content-subtle: 140 140 150;
+  --border-alpha: 0.1;
+}
+
+* {
+  border-color: rgb(var(--border) / var(--border-alpha));
+}
+
+body {
+  background-color: rgb(var(--surface));
+  color: rgb(var(--content));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+  /* Prevent iOS auto-zoom / tap highlight for a native feel */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scrolling, but never fight reduced-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Reusable component classes.
+   Glass is used sparingly and only on persistent chrome that never overlaps
+   another glass layer (sidebar, top bar, input dock). Floating popovers use
+   solid `.popover` surfaces so blur layers are never stacked. Blur ≤ 10px.
+--------------------------------------------------------------------------- */
+@layer components {
+  .glass {
+    background-color: rgb(var(--surface-mid) / 0.72);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgb(var(--border) / var(--border-alpha));
+  }
+
+  /* Solid floating surface for menus, dialogs, palettes — no backdrop blur. */
+  .popover {
+    background-color: rgb(var(--surface-overlay));
+    border: 1px solid rgb(var(--border) / calc(var(--border-alpha) * 1.6));
+  }
+
+  .card {
+    background-color: rgb(var(--surface-raised));
+    border: 1px solid rgb(var(--border) / var(--border-alpha));
+  }
+
+  .accent-gradient {
+    background-image: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-soft)));
+  }
+
+  .focus-ring {
+    @apply outline-none ring-offset-0 focus-visible:ring-2 focus-visible:ring-accent/70;
+  }
+
+  /* Transitions restricted to GPU-friendly + color props only. Never animate
+     box-shadow, filter, width/height, or border-radius. 120–200ms. */
+  .btn {
+    @apply focus-ring inline-flex select-none items-center justify-center gap-2 rounded-xl text-sm font-medium transition-[transform,background-color,color,opacity] duration-150 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn accent-gradient text-accent-fg shadow-subtle hover:opacity-90;
+  }
+
+  .btn-ghost {
+    @apply btn text-content-muted hover:bg-white/5 hover:text-content;
+  }
+
+  .btn-surface {
+    @apply btn border border-border bg-surface-raised text-content hover:bg-surface-overlay;
+  }
+
+  .input {
+    @apply focus-ring w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-content transition-colors placeholder:text-content-subtle;
+  }
+
+  /* Native, zero-JS windowing for long chat history. Offscreen messages skip
+     layout/paint; contain-intrinsic-size reserves space to avoid layout shift. */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 320px;
+  }
+
+  /* Comfortable, premium reading column (~860px). */
+  .chat-container {
+    @apply mx-auto w-full max-w-[860px] px-4 sm:px-6;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbars
+--------------------------------------------------------------------------- */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--content-subtle) / 0.4) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--content-subtle) / 0.35);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--content-subtle) / 0.55);
+}
+
+/* ---------------------------------------------------------------------------
+   Markdown / prose styling (scoped to .prose-chat)
+--------------------------------------------------------------------------- */
+.prose-chat {
+  @apply text-[0.95rem] leading-7 text-content;
+}
+.prose-chat > *:first-child {
+  margin-top: 0;
+}
+.prose-chat > *:last-child {
+  margin-bottom: 0;
+}
+.prose-chat p {
+  margin: 0.75em 0;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  @apply font-semibold text-content;
+  margin: 1.4em 0 0.6em;
+  line-height: 1.3;
+}
+.prose-chat h1 {
+  @apply text-2xl;
+}
+.prose-chat h2 {
+  @apply text-xl;
+}
+.prose-chat h3 {
+  @apply text-lg;
+}
+.prose-chat ul,
+.prose-chat ol {
+  margin: 0.75em 0;
+  padding-left: 1.5em;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li {
+  margin: 0.3em 0;
+}
+.prose-chat a {
+  @apply text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent;
+}
+.prose-chat blockquote {
+  @apply border-l-2 border-accent/50 pl-4 text-content-muted;
+  margin: 1em 0;
+}
+.prose-chat hr {
+  @apply my-6 border-border;
+}
+.prose-chat code:not(pre code) {
+  @apply rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[0.85em] text-accent-soft;
+}
+.prose-chat pre {
+  margin: 0;
+  background: transparent;
+}
+.prose-chat table {
+  @apply my-4 w-full border-collapse overflow-hidden rounded-lg text-sm;
+  display: block;
+  overflow-x: auto;
+}
+.prose-chat th,
+.prose-chat td {
+  @apply border border-border px-3 py-2 text-left;
+}
+.prose-chat th {
+  @apply bg-white/5 font-semibold;
+}
+.prose-chat img {
+  @apply my-3 max-w-full rounded-xl;
+}
+.prose-chat .katex-display {
+  @apply my-4 overflow-x-auto overflow-y-hidden py-1;
+}
+
+/* Streaming caret — opacity blink only. */
+.streaming-caret::after {
+  content: '▍';
+  @apply ml-0.5 inline-block animate-caret-blink text-accent;
+}

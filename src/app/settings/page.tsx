@@ -1,0 +1,407 @@
+'use client';
+
+import { useRef, useState } from 'react';
+import Link from 'next/link';
+import { m } from 'framer-motion';
+import {
+  ArrowLeft,
+  Download,
+  Palette,
+  Plus,
+  Server,
+  Sliders,
+  Terminal,
+  Trash2,
+  Upload,
+  Sparkles,
+} from 'lucide-react';
+import { AmbientBackground } from '@/components/AmbientBackground';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/components/ui/toast';
+import { useSettings, type ThemeMode } from '@/lib/store/settings-store';
+import { useChatStore } from '@/lib/store/chat-store';
+import { ACCENT_PRESETS } from '@/lib/store/defaults';
+import { useModels } from '@/features/models/use-models';
+import { useHydrated } from '@/lib/hooks/use-hydrated';
+import { API_BASE_URL } from '@/lib/api/config';
+import { downloadText } from '@/lib/utils/export';
+import { uid } from '@/lib/utils/id';
+import { cn } from '@/lib/utils/cn';
+import type { Conversation, PromptPreset } from '@/types';
+
+export default function SettingsPage() {
+  const hydrated = useHydrated();
+  const s = useSettings();
+  const { models } = useModels();
+  const { toast } = useToast();
+
+  const conversations = useChatStore((st) => st.conversations);
+  const importConversations = useChatStore((st) => st.importConversations);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const chatFileRef = useRef<HTMLInputElement>(null);
+
+  const exportSettings = () => {
+    const payload = {
+      theme: s.theme,
+      accent: s.accent,
+      apiUrlOverride: s.apiUrlOverride,
+      defaultModel: s.defaultModel,
+      defaultSystemPrompt: s.defaultSystemPrompt,
+      defaultParams: s.defaultParams,
+      presets: s.presets,
+      animatedBackground: s.animatedBackground,
+      sendOnEnter: s.sendOnEnter,
+      showTokenCounter: s.showTokenCounter,
+    };
+    downloadText('ollama-webui-settings.json', JSON.stringify(payload, null, 2), 'application/json');
+    toast('Settings exported', 'success');
+  };
+
+  const importSettings = async (file: File) => {
+    try {
+      const data = JSON.parse(await file.text());
+      s.importSettings(data);
+      toast('Settings imported', 'success');
+    } catch {
+      toast('Invalid settings file', 'error');
+    }
+  };
+
+  const exportChats = () => {
+    downloadText('ollama-webui-chats.json', JSON.stringify(conversations, null, 2), 'application/json');
+    toast('Conversations exported', 'success');
+  };
+
+  const importChats = async (file: File) => {
+    try {
+      const data = JSON.parse(await file.text()) as Conversation[];
+      if (!Array.isArray(data)) throw new Error();
+      importConversations(data, false);
+      toast(`Imported ${data.length} conversations`, 'success');
+    } catch {
+      toast('Invalid conversations file', 'error');
+    }
+  };
+
+  if (!hydrated) return <div className="min-h-[100dvh]" />;
+
+  return (
+    <>
+      <AmbientBackground />
+      <div className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 py-6 sm:py-10">
+        <div className="mb-8 flex items-center gap-3">
+          <Link href="/" className="btn-ghost h-10 w-10 rounded-xl" aria-label="Back to chat">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-semibold text-content">Settings</h1>
+            <p className="text-sm text-content-muted">Everything is stored locally in your browser.</p>
+          </div>
+        </div>
+
+        {/* Appearance */}
+        <Section icon={Palette} title="Appearance">
+          <Field label="Theme">
+            <div className="flex gap-2">
+              {(['dark', 'light', 'system'] as ThemeMode[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => s.setTheme(t)}
+                  className={cn(
+                    'btn-surface h-9 flex-1 capitalize',
+                    s.theme === t && 'border-accent/50 bg-accent/10 text-content',
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="Accent color">
+            <div className="flex flex-wrap gap-2">
+              {ACCENT_PRESETS.map((a) => (
+                <button
+                  key={a.value}
+                  onClick={() => s.setAccent(a.value)}
+                  className={cn(
+                    'flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition-colors',
+                    s.accent === a.value ? 'border-white/30 text-content' : 'border-border text-content-muted',
+                  )}
+                  style={{ boxShadow: s.accent === a.value ? `0 0 0 2px rgb(${a.rgb} / 0.4)` : undefined }}
+                >
+                  <span className="h-4 w-4 rounded-full" style={{ background: `rgb(${a.rgb})` }} />
+                  {a.name}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <ToggleRow
+            label="Animated background"
+            description="Ambient gradient blobs. Disable to save battery."
+            checked={s.animatedBackground}
+            onChange={() => s.toggle('animatedBackground')}
+          />
+          <ToggleRow
+            label="Send on Enter"
+            description="Enter sends, Shift+Enter for newline. Ctrl+Enter always sends."
+            checked={s.sendOnEnter}
+            onChange={() => s.toggle('sendOnEnter')}
+          />
+          <ToggleRow
+            label="Show token counter"
+            description="Estimate tokens while typing."
+            checked={s.showTokenCounter}
+            onChange={() => s.toggle('showTokenCounter')}
+          />
+        </Section>
+
+        {/* Connection */}
+        <Section icon={Server} title="Connection">
+          <Field
+            label="API URL"
+            hint="Overrides NEXT_PUBLIC_API_URL for this browser. Leave blank to use the build-time value."
+          >
+            <input
+              value={s.apiUrlOverride}
+              onChange={(e) => s.setApiUrlOverride(e.target.value)}
+              placeholder={API_BASE_URL || 'https://my-ollama-api.example.com'}
+              className="input font-mono text-sm"
+              spellCheck={false}
+            />
+            <p className="mt-1.5 text-xs text-content-subtle">
+              Active endpoint: <code className="text-accent-soft">{API_BASE_URL || '(unset)'}</code>
+            </p>
+          </Field>
+          <Field label="Default model">
+            <select
+              value={s.defaultModel}
+              onChange={(e) => s.setDefaultModel(e.target.value)}
+              className="input"
+            >
+              <option value="">Auto (first available)</option>
+              {models.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </Section>
+
+        {/* System prompt */}
+        <Section icon={Terminal} title="Default system prompt">
+          <textarea
+            value={s.defaultSystemPrompt}
+            onChange={(e) => s.setDefaultSystemPrompt(e.target.value)}
+            rows={4}
+            className="input resize-none font-mono text-[0.85rem] leading-relaxed"
+          />
+          <PresetManager presets={s.presets} />
+        </Section>
+
+        {/* Default generation params */}
+        <Section icon={Sliders} title="Default generation parameters">
+          <div className="space-y-6">
+            <Slider label="Temperature" value={s.defaultParams.temperature} min={0} max={2} step={0.05} onChange={(v) => s.setDefaultParams({ temperature: v })} format={(v) => v.toFixed(2)} />
+            <Slider label="Top P" value={s.defaultParams.topP} min={0} max={1} step={0.01} onChange={(v) => s.setDefaultParams({ topP: v })} format={(v) => v.toFixed(2)} />
+            <Slider label="Top K" value={s.defaultParams.topK} min={0} max={100} step={1} onChange={(v) => s.setDefaultParams({ topK: v })} />
+            <Slider label="Repeat penalty" value={s.defaultParams.repeatPenalty} min={0.8} max={2} step={0.01} onChange={(v) => s.setDefaultParams({ repeatPenalty: v })} format={(v) => v.toFixed(2)} />
+            <Slider label="Context length" value={s.defaultParams.contextLength} min={512} max={131072} step={512} onChange={(v) => s.setDefaultParams({ contextLength: v })} />
+            <Slider label="Max tokens" value={s.defaultParams.maxTokens} min={-1} max={8192} step={1} onChange={(v) => s.setDefaultParams({ maxTokens: v })} />
+          </div>
+        </Section>
+
+        {/* Data */}
+        <Section icon={Download} title="Data & backup">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Button variant="surface" onClick={exportSettings}>
+              <Download className="h-4 w-4" /> Export settings
+            </Button>
+            <Button variant="surface" onClick={() => fileRef.current?.click()}>
+              <Upload className="h-4 w-4" /> Import settings
+            </Button>
+            <Button variant="surface" onClick={exportChats}>
+              <Download className="h-4 w-4" /> Export chats ({conversations.length})
+            </Button>
+            <Button variant="surface" onClick={() => chatFileRef.current?.click()}>
+              <Upload className="h-4 w-4" /> Import chats
+            </Button>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.[0]) void importSettings(e.target.files[0]);
+              e.target.value = '';
+            }}
+          />
+          <input
+            ref={chatFileRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.[0]) void importChats(e.target.files[0]);
+              e.target.value = '';
+            }}
+          />
+          <div className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-4">
+            <p className="text-sm font-medium text-content">Reset settings</p>
+            <p className="mt-0.5 text-xs text-content-muted">
+              Restores default theme, prompts and parameters. Conversations are kept.
+            </p>
+            <Button
+              variant="danger"
+              className="mt-3 h-9"
+              onClick={() => {
+                s.reset();
+                toast('Settings reset to defaults');
+              }}
+            >
+              <Trash2 className="h-4 w-4" /> Reset settings
+            </Button>
+          </div>
+        </Section>
+
+        <div className="flex items-center justify-center gap-2 py-8 text-xs text-content-subtle">
+          <Sparkles className="h-3.5 w-3.5 text-accent" />
+          Ollama Chat — private, local-first AI
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Section({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <m.section
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass mb-6 rounded-3xl p-5 shadow-card sm:p-6"
+    >
+      <div className="mb-4 flex items-center gap-2">
+        <Icon className="h-5 w-5 text-accent" />
+        <h2 className="text-lg font-semibold text-content">{title}</h2>
+      </div>
+      <div className="space-y-5">{children}</div>
+    </m.section>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-medium text-content">{label}</label>
+      {hint && <p className="mb-2 text-xs text-content-subtle">{hint}</p>}
+      {children}
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm font-medium text-content">{label}</p>
+        <p className="text-xs text-content-muted">{description}</p>
+      </div>
+      <Switch checked={checked} onChange={onChange} label={label} />
+    </div>
+  );
+}
+
+function PresetManager({ presets }: { presets: PromptPreset[] }) {
+  const addPreset = useSettings((st) => st.addPreset);
+  const updatePreset = useSettings((st) => st.updatePreset);
+  const removePreset = useSettings((st) => st.removePreset);
+  const [name, setName] = useState('');
+  const [content, setContent] = useState('');
+
+  return (
+    <div className="mt-4">
+      <p className="mb-2 text-sm font-medium text-content">Prompt presets</p>
+      <div className="space-y-2">
+        {presets.map((p) => (
+          <div key={p.id} className="flex items-start gap-2 rounded-xl border border-border bg-white/[0.02] p-2">
+            <input
+              value={p.name}
+              onChange={(e) => updatePreset(p.id, { name: e.target.value })}
+              className="input h-8 w-40 shrink-0 text-sm"
+            />
+            <textarea
+              value={p.content}
+              onChange={(e) => updatePreset(p.id, { content: e.target.value })}
+              rows={2}
+              className="input resize-none text-xs"
+            />
+            <button
+              onClick={() => removePreset(p.id)}
+              className="btn-ghost h-8 w-8 shrink-0 rounded-lg text-content-subtle hover:text-rose-400"
+              aria-label={`Delete ${p.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 flex items-start gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Preset name"
+          className="input h-8 w-40 shrink-0 text-sm"
+        />
+        <input
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Prompt content…"
+          className="input h-8 text-sm"
+        />
+        <button
+          onClick={() => {
+            if (!name.trim() || !content.trim()) return;
+            addPreset({ id: uid(), name: name.trim(), content: content.trim() });
+            setName('');
+            setContent('');
+          }}
+          className="btn-surface h-8 w-8 shrink-0 rounded-lg"
+          aria-label="Add preset"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
