@@ -169,7 +169,7 @@ export function ChatInput({
                     setValue('');
                   }
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-border/5"
               >
                 <Command className="h-4 w-4 text-accent" />
                 <span className="font-mono text-sm text-content">{c.command}</span>
@@ -210,13 +210,13 @@ export function ChatInput({
             {attachments.map((a) => (
               <div
                 key={a.id}
-                className="group/att relative flex items-center gap-2 rounded-xl border border-border bg-white/5 py-1 pl-1 pr-2 text-xs"
+                className="group/att relative flex items-center gap-2 rounded-xl border border-border bg-border/5 py-1 pl-1 pr-2 text-xs"
               >
                 {a.previewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={a.previewUrl} alt={a.name} className="h-9 w-9 rounded-lg object-cover" />
                 ) : (
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-border/5">
                     <Paperclip className="h-4 w-4 text-content-muted" />
                   </span>
                 )}
@@ -238,7 +238,7 @@ export function ChatInput({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
-              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-content-muted transition-colors hover:bg-white/5 hover:text-content disabled:opacity-40"
+              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-content-muted transition-colors hover:bg-border/5 hover:text-content disabled:opacity-40"
               aria-label="Attach files"
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
@@ -275,7 +275,7 @@ export function ChatInput({
             <Tooltip label="Stop generating (Esc)">
               <button
                 onClick={onStop}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-content transition-colors hover:bg-white/15"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-border/10 text-content transition-colors hover:bg-border/15"
                 aria-label="Stop generating"
               >
                 <Square className="h-4 w-4 fill-current" />
@@ -298,7 +298,7 @@ export function ChatInput({
         <span>
           {visionCapable ? 'Vision model — images supported' : 'Text model'}
         </span>
-        {showTokenCounter && value.trim() && <span>~{tokenCount} tokens</span>}
+        {showTokenCounter && value.trim() && <span className="tabular-nums">~{tokenCount} tokens</span>}
       </div>
     </div>
   );

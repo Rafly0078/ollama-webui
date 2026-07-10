@@ -33,11 +33,11 @@ export function CodeBlock({
 
   return (
     <div className={cn('group/code my-4 overflow-hidden rounded-xl border border-border bg-black/40', className)}>
-      <div className="flex items-center justify-between border-b border-border bg-white/[0.03] px-3 py-1.5">
+      <div className="flex items-center justify-between border-b border-border bg-border/[0.03] px-3 py-1.5">
         <span className="font-mono text-xs text-content-subtle">{language || 'text'}</span>
         <button
           onClick={copy}
-          className="focus-ring flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-content-muted transition-colors hover:bg-white/5 hover:text-content"
+          className="focus-ring flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-content-muted transition-colors hover:bg-border/5 hover:text-content"
           aria-label="Copy code"
         >
           {copied ? (

@@ -169,7 +169,7 @@ function MenuItem({
     <button
       role="menuitem"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/5 ${
+      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-border/5 ${
         danger ? 'text-rose-300 hover:bg-rose-500/10' : 'text-content'
       }`}
     >

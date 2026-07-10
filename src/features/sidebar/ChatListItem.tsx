@@ -46,7 +46,7 @@ export function ChatListItem({ conversation, active, onSelect }: Props) {
       transition={{ duration: 0.18 }}
       className={cn(
         'group/item relative flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm transition-colors',
-        active ? 'bg-accent/15 text-content' : 'text-content-muted hover:bg-white/5',
+        active ? 'bg-accent/15 text-content' : 'text-content-muted hover:bg-border/5',
       )}
     >
       <button
@@ -158,7 +158,7 @@ function IconBtn({
         onClick();
       }}
       className={cn(
-        'flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-white/10',
+        'flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-border/10',
         danger ? 'text-content-subtle hover:text-rose-400' : 'text-content-subtle hover:text-content',
       )}
     >

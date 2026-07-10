@@ -69,7 +69,7 @@ export function ConnectionStatus() {
           attempts.current = 0;
           void check();
         }}
-        className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-white/5"
+        className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-border/5"
         aria-label={config.label}
       >
         <span className="relative flex h-2.5 w-2.5">

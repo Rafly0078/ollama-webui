@@ -96,7 +96,7 @@ export default function SettingsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold text-content">Settings</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-content">Settings</h1>
             <p className="text-sm text-content-muted">Everything is stored locally in your browser.</p>
           </div>
         </div>
@@ -128,7 +128,7 @@ export default function SettingsPage() {
                   onClick={() => s.setAccent(a.value)}
                   className={cn(
                     'flex h-9 items-center gap-2 rounded-xl border px-3 text-sm transition-colors',
-                    s.accent === a.value ? 'border-white/30 text-content' : 'border-border text-content-muted',
+                    s.accent === a.value ? 'border-border/30 text-content' : 'border-border text-content-muted',
                   )}
                   style={{ boxShadow: s.accent === a.value ? `0 0 0 2px rgb(${a.rgb} / 0.4)` : undefined }}
                 >
@@ -295,7 +295,7 @@ function Section({
     >
       <div className="mb-4 flex items-center gap-2">
         <Icon className="h-5 w-5 text-accent" />
-        <h2 className="text-lg font-semibold text-content">{title}</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-content">{title}</h2>
       </div>
       <div className="space-y-5">{children}</div>
     </m.section>
@@ -354,7 +354,7 @@ function PresetManager({ presets }: { presets: PromptPreset[] }) {
       <p className="mb-2 text-sm font-medium text-content">Prompt presets</p>
       <div className="space-y-2">
         {presets.map((p) => (
-          <div key={p.id} className="flex items-start gap-2 rounded-xl border border-border bg-white/[0.02] p-2">
+          <div key={p.id} className="flex items-start gap-2 rounded-xl border border-border bg-border/[0.02] p-2">
             <input
               value={p.name}
               onChange={(e) => updatePreset(p.id, { name: e.target.value })}

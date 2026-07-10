@@ -19,7 +19,7 @@ export function EmptyState({ onPick }: { onPick: (prompt: string) => void }) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="bg-gradient-to-b from-content to-content-muted bg-clip-text text-3xl font-semibold text-transparent sm:text-4xl"
+        className="bg-gradient-to-b from-content to-content-muted bg-clip-text text-3xl font-semibold tracking-tight text-transparent sm:text-4xl"
       >
         How can I help you today?
       </m.h1>

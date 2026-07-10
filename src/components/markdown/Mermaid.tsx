@@ -52,13 +52,13 @@ export function Mermaid({ code }: { code: string }) {
   }
 
   if (!svg) {
-    return <div className="my-4 h-32 animate-pulse rounded-xl border border-border bg-white/5" />;
+    return <div className="my-4 h-32 animate-pulse rounded-xl border border-border bg-border/5" />;
   }
 
   return (
     <div
       ref={ref}
-      className="my-4 flex justify-center overflow-x-auto rounded-xl border border-border bg-white/[0.02] p-4"
+      className="my-4 flex justify-center overflow-x-auto rounded-xl border border-border bg-border/[0.02] p-4"
       // Mermaid output is sanitized (securityLevel: 'strict').
       dangerouslySetInnerHTML={{ __html: svg }}
     />

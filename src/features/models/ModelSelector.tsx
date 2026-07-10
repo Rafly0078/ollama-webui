@@ -140,7 +140,7 @@ function ModelRow({
       aria-selected={selected}
       onClick={onSelect}
       className={cn(
-        'flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-white/5',
+        'flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left transition-colors hover:bg-border/5',
         selected && 'bg-accent/10',
       )}
     >
@@ -157,7 +157,7 @@ function ModelRow({
             {chips.map((c, i) => (
               <span
                 key={i}
-                className="rounded-md bg-white/5 px-1.5 py-0.5 text-[0.68rem] text-content-subtle"
+                className="rounded-md bg-border/5 px-1.5 py-0.5 text-[0.68rem] tabular-nums text-content-subtle"
               >
                 {c}
               </span>

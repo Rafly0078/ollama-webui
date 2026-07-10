@@ -67,17 +67,47 @@ function mapModel(raw: RawModel): ModelInfo {
 }
 
 /** GET /api/models — list installed models. */
+const API_TAG_PATHS = ['/api/tags', '/api/models'];
+const API_CHAT_PATHS = ['/api/chat', '/api/chat/stream'];
+
+async function fetchWithFallback(
+  paths: string[],
+  init: RequestInit,
+): Promise<{ res: Response; usedPath: string }> {
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      const res = await fetch(apiUrl(path), init);
+      if (res.ok) return { res, usedPath: path };
+      if (res.status === 404 || res.status === 405) {
+        lastError = new ApiError(`Endpoint ${path} returned ${res.status}.`, {
+          kind: 'http',
+          status: res.status,
+        });
+        continue;
+      }
+      return { res, usedPath: path };
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (lastError instanceof Error) throw lastError;
+  throw new ApiError('Unable to reach any API route.', { kind: 'network' });
+}
+
 export async function fetchModels(signal?: AbortSignal): Promise<ModelInfo[]> {
   const { signal: s, cancel } = withTimeout(DEFAULT_TIMEOUT_MS, signal);
   try {
-    const res = await fetch(apiUrl('/api/tags'), {
+    const { res } = await fetchWithFallback(API_TAG_PATHS, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       signal: s,
     });
     await assertOk(res);
     const data = (await res.json()) as ModelsResponse | RawModel[];
-    const list = Array.isArray(data) ? data : (data.models ?? []);
+    const list = Array.isArray(data) ? data : data.models ?? [];
     return list.map(mapModel).sort((a, b) => a.label.localeCompare(b.label));
   } catch (err) {
     throw normalize(err);
@@ -102,12 +132,13 @@ export async function streamChat(
 ): Promise<void> {
   let res: Response;
   try {
-    res = await fetch(apiUrl('/api/chat'), {
+    const result = await fetchWithFallback(API_CHAT_PATHS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson, text/event-stream' },
       body: JSON.stringify({ ...req, stream: true }),
       signal,
     });
+    res = result.res;
   } catch (err) {
     throw normalize(err);
   }
@@ -133,7 +164,7 @@ export async function streamChat(
 export async function chat(req: ChatRequest, signal?: AbortSignal): Promise<string> {
   const { signal: s, cancel } = withTimeout(DEFAULT_TIMEOUT_MS, signal);
   try {
-    const res = await fetch(apiUrl('/api/chat'), {
+    const { res } = await fetchWithFallback(API_CHAT_PATHS, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...req, stream: false }),
@@ -153,7 +184,7 @@ export async function chat(req: ChatRequest, signal?: AbortSignal): Promise<stri
 export async function ping(signal?: AbortSignal): Promise<boolean> {
   const { signal: s, cancel } = withTimeout(8000, signal);
   try {
-    const res = await fetch(apiUrl('/api/tags'), { method: 'GET', signal: s });
+    const { res } = await fetchWithFallback(API_TAG_PATHS, { method: 'GET', signal: s });
     return res.ok;
   } catch {
     return false;

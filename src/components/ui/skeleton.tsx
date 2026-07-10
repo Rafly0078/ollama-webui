@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils/cn';
  * the "animate opacity/transform only" rule) — no shimmer gradient repaint.
  */
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-lg bg-white/[0.06]', className)} />;
+  return <div className={cn('animate-pulse rounded-lg bg-border/[0.06]', className)} />;
 }
 
 export function MessageSkeleton() {

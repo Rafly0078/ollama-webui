@@ -23,7 +23,7 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={cn(
         'focus-ring relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors',
-        checked ? 'accent-gradient' : 'bg-white/10',
+        checked ? 'accent-gradient' : 'bg-border/10',
       )}
     >
       <span

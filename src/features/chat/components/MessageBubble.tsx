@@ -39,8 +39,8 @@ interface Props {
 
 function MetricPill({ label, value }: { label: string; value: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-white/5 px-1.5 py-0.5 text-[0.68rem] text-content-subtle">
-      <span className="font-medium text-content-muted">{value}</span>
+    <span className="inline-flex items-center gap-1 rounded-md bg-border/5 px-1.5 py-0.5 text-[0.68rem] text-content-subtle">
+      <span className="font-medium tabular-nums text-content-muted">{value}</span>
       {label}
     </span>
   );
@@ -87,7 +87,7 @@ export const MessageBubble = memo(function MessageBubble({
       <div
         className={cn(
           'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-          isUser ? 'bg-white/10 text-content' : 'accent-gradient text-accent-fg shadow-subtle',
+          isUser ? 'bg-border/10 text-content' : 'accent-gradient text-accent-fg shadow-subtle',
         )}
         aria-hidden
       >
@@ -99,7 +99,7 @@ export const MessageBubble = memo(function MessageBubble({
         <div className="mb-1 flex items-center gap-2 text-xs">
           <span className="font-semibold text-content">{isUser ? 'You' : 'Assistant'}</span>
           {message.model && !isUser && (
-            <span className="rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-[0.68rem] text-content-subtle">
+            <span className="rounded-md bg-border/5 px-1.5 py-0.5 font-mono text-[0.68rem] text-content-subtle">
               {message.model.replace(/:latest$/, '')}
             </span>
           )}
@@ -120,7 +120,7 @@ export const MessageBubble = memo(function MessageBubble({
               ) : (
                 <span
                   key={a.id}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white/5 px-2 py-1 text-xs text-content-muted"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-border/5 px-2 py-1 text-xs text-content-muted"
                 >
                   {a.name}
                 </span>
@@ -239,7 +239,7 @@ function ActionBtn({
       <button
         onClick={onClick}
         aria-label={label}
-        className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-content-subtle transition-colors hover:bg-white/5 hover:text-content"
+        className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-content-subtle transition-colors hover:bg-border/5 hover:text-content"
       >
         {children}
       </button>
