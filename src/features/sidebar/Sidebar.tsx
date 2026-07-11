@@ -38,11 +38,11 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
   const content = (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-3">
-        <div className="accent-gradient flex h-8 w-8 items-center justify-center rounded-xl shadow-subtle">
+      <div className="flex items-center gap-3 px-4 py-4">
+        <div className="accent-gradient flex h-10 w-10 items-center justify-center rounded-md border-[3px] border-border shadow-card">
           <Sparkles className="h-4 w-4 text-accent-fg" />
         </div>
-        <span className="flex-1 font-semibold text-content">Ollama Chat</span>
+        <span className="flex-1 text-lg font-bold uppercase tracking-[-0.06em] text-content">Ollama Chat</span>
         {isMobile && (
           <button onClick={onClose} className="btn-ghost h-8 w-8 rounded-lg" aria-label="Close sidebar">
             <X className="h-5 w-5" />
@@ -51,14 +51,14 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
       </div>
 
       {/* New chat */}
-      <div className="px-3">
-        <button onClick={onNewChat} className="btn-primary h-10 w-full">
+      <div className="px-4">
+        <button onClick={onNewChat} className="btn-primary h-11 w-full rounded-md">
           <Plus className="h-4 w-4" /> New chat
         </button>
       </div>
 
       {/* Search */}
-      <div className="px-3 py-3">
+      <div className="px-4 py-4">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-content-subtle" />
           <input
@@ -82,7 +82,7 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
       </div>
 
       {/* List */}
-      <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 pb-2" aria-label="Conversations">
+      <nav className="scrollbar-thin flex-1 overflow-y-auto px-3 pb-3" aria-label="Conversations">
         {conversations.length === 0 && (
           <p className="px-3 py-8 text-center text-sm text-content-subtle">
             No conversations yet. Start a new chat to begin.

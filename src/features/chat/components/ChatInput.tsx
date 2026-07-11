@@ -186,7 +186,7 @@ export function ChatInput({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'popover relative rounded-3xl p-2 shadow-card transition-colors',
+          'popover relative rounded-md p-2 shadow-card transition-colors',
           dragging && 'ring-2 ring-accent',
         )}
       >
@@ -238,7 +238,7 @@ export function ChatInput({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
-              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-content-muted transition-colors hover:bg-border/5 hover:text-content disabled:opacity-40"
+              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
               aria-label="Attach files"
             >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
@@ -275,7 +275,7 @@ export function ChatInput({
             <Tooltip label="Stop generating (Esc)">
               <button
                 onClick={onStop}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-border/10 text-content transition-colors hover:bg-border/15"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-[3px] border-border bg-surface-raised text-content shadow-subtle transition-colors hover:bg-surface-overlay"
                 aria-label="Stop generating"
               >
                 <Square className="h-4 w-4 fill-current" />
@@ -285,7 +285,7 @@ export function ChatInput({
             <button
               onClick={submit}
               disabled={disabled || (!value.trim() && attachments.length === 0)}
-              className="btn-primary h-11 w-11 shrink-0 rounded-2xl p-0"
+              className="btn-primary h-11 w-11 shrink-0 rounded-md p-0"
               aria-label="Send message"
             >
               <ArrowUp className="h-5 w-5" />

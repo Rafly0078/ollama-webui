@@ -20,23 +20,23 @@
    DESIGN TOKENS — shared across themes
 --------------------------------------------------------------------------- */
 :root {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   /* One accent, no gradient. Soft = hover/highlight tint of the same hue. */
   --accent: 124 58 237; /* #7C3AED */
   --accent-soft: 139 92 246; /* #8B5CF6 — used for hover, not decoration */
-  --accent-fg: 255 255 255;
+  --accent-fg: 27 26 22;
 
   --success: 34 197 94; /* #22C55E */
   --warning: 245 158 11; /* #F59E0B */
   --error: 239 68 68; /* #EF4444 */
 
   /* Radius scale — sharp, within the 8–16px brief. */
-  --radius-sm: 0.5rem; /* 8px */
-  --radius-md: 0.625rem; /* 10px */
-  --radius-lg: 0.75rem; /* 12px */
-  --radius-xl: 1rem; /* 16px */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+  --radius-xl: 0.5rem;
 }
 
 /* ---------------------------------------------------------------------------
@@ -290,6 +290,12 @@ h4 {
   }
 }
 
+@layer utilities {
+  .rounded-xl { border-radius: 0.25rem; }
+  .rounded-2xl { border-radius: 0.375rem; }
+  .rounded-3xl { border-radius: 0.5rem; }
+}
+
 /* ---------------------------------------------------------------------------
    SCROLLBARS — slim, brutalist thumb
 --------------------------------------------------------------------------- */
@@ -431,4 +437,87 @@ h4 {
 .streaming-caret::after {
   content: '▍';
   @apply ml-0.5 inline-block animate-caret-blink text-accent;
+}
+
+/* Bright paper neo-brutalism override. Kept here so existing component logic
+   can retain shared semantic classes while the visual system changes wholly. */
+:root,
+.light {
+  --surface: 255 249 232;
+  --surface-raised: 255 255 255;
+  --surface-overlay: 255 240 194;
+  --surface-mid: 255 229 120;
+  --border: 27 26 22;
+  --border-alpha: 0.18;
+  --border-strong: 0.95;
+  --content: 27 26 22;
+  --content-muted: 73 68 57;
+  --content-subtle: 114 104 88;
+  --shadow: 27 26 22;
+  --shadow-alpha: 1;
+  --success: 22 130 74;
+  --warning: 180 95 0;
+  --error: 199 42 47;
+}
+
+.dark {
+  --surface: 31 29 27;
+  --surface-raised: 49 45 41;
+  --surface-overlay: 64 57 47;
+  --surface-mid: 88 70 31;
+  --border: 255 249 232;
+  --border-alpha: 0.15;
+  --border-strong: 0.92;
+  --content: 255 249 232;
+  --content-muted: 218 204 177;
+  --content-subtle: 169 153 128;
+  --shadow: 0 0 0;
+  --shadow-alpha: 1;
+}
+
+@layer components {
+  .glass,
+  .popover,
+  .card {
+    border-width: 3px;
+  }
+
+  .popover,
+  .card {
+    box-shadow: 6px 6px 0 rgb(var(--shadow) / var(--shadow-alpha));
+  }
+
+  .btn {
+    border-radius: 0.25rem;
+    font-weight: 700;
+  }
+
+  .btn-surface,
+  .btn-primary,
+  .input {
+    border-width: 3px;
+  }
+
+  .btn-surface,
+  .btn-primary {
+    box-shadow: 4px 4px 0 rgb(var(--shadow) / var(--shadow-alpha));
+  }
+
+  .btn-surface:hover,
+  .btn-primary:hover {
+    transform: translate(-2px, -2px);
+  }
+
+  .btn-surface:active,
+  .btn-primary:active {
+    transform: translate(4px, 4px);
+    box-shadow: none;
+  }
+
+  .prompt-card-paper { background-color: rgb(var(--surface-raised)); }
+  .prompt-card-coral { background-color: rgb(var(--accent) / 0.36); }
+  .prompt-card-sun { background-color: rgb(var(--surface-overlay)); }
+  .prompt-card-sky { background-color: rgb(173 198 255); }
+
+  .dark .prompt-card-sky { background-color: rgb(53 92 174); }
 }

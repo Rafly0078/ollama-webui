@@ -14,6 +14,9 @@ export const DEFAULT_SYSTEM_PROMPT =
   'You are a helpful, knowledgeable AI assistant. Answer clearly and concisely. Use Markdown for formatting, fenced code blocks with language tags, LaTeX for math, and tables where helpful.';
 
 export const ACCENT_PRESETS: { name: string; value: string; rgb: string; soft: string }[] = [
+  { name: 'Coral', value: 'coral', rgb: '255 90 95', soft: '235 67 75' },
+  { name: 'Sun', value: 'sun', rgb: '233 183 33', soft: '255 213 69' },
+  { name: 'Cobalt', value: 'cobalt', rgb: '37 99 235', soft: '96 165 250' },
   { name: 'Violet', value: 'violet', rgb: '124 58 237', soft: '168 85 247' }, // #7C3AED / #A855F7
   { name: 'Blue', value: 'blue', rgb: '37 99 235', soft: '96 165 250' },
   { name: 'Emerald', value: 'emerald', rgb: '5 150 105', soft: '52 211 153' },

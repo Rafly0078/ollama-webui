@@ -38,7 +38,7 @@ export interface SettingsState {
 }
 
 const initial = {
-  theme: 'dark' as ThemeMode,
+  theme: 'light' as ThemeMode,
   accent: ACCENT_PRESETS[0]!.value,
   apiUrlOverride: '',
   defaultModel: '',
