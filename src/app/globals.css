@@ -2,61 +2,102 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===========================================================================
+   OLLAMA CHAT — NEO BRUTALISM DESIGN SYSTEM
+   Monochrome surfaces + one violet accent (#7C3AED). Thick edges, hard
+   offset shadows (0 blur = GPU-cheap, never animated), sharp 8–16px corners,
+   tactile pressable controls.
+
+   Architecture (drives the whole app through shared classes — no per-component
+   styling needed):
+     Design Tokens → Colors → Base/Typography → Elevation → Buttons → Forms →
+     Cards/Chrome → Chat → Markdown → Scrollbars → Utilities → Responsive
+   Colors are RGB triplets so Tailwind's <alpha-value> keeps working. Accent is
+   themeable at runtime by ThemeManager via --accent / --accent-soft.
+=========================================================================== */
+
 /* ---------------------------------------------------------------------------
-   Design tokens. Colors are RGB triplets so Tailwind's <alpha-value> works.
-   Palette per brief: Zinc surfaces + violet accent. Accent is themeable at
-   runtime by ThemeManager via --accent / --accent-soft.
+   DESIGN TOKENS — shared across themes
 --------------------------------------------------------------------------- */
 :root {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
+  /* One accent, no gradient. Soft = hover/highlight tint of the same hue. */
   --accent: 124 58 237; /* #7C3AED */
-  --accent-soft: 168 85 247; /* #A855F7 */
+  --accent-soft: 139 92 246; /* #8B5CF6 — used for hover, not decoration */
   --accent-fg: 255 255 255;
 
   --success: 34 197 94; /* #22C55E */
   --warning: 245 158 11; /* #F59E0B */
   --error: 239 68 68; /* #EF4444 */
+
+  /* Radius scale — sharp, within the 8–16px brief. */
+  --radius-sm: 0.5rem; /* 8px */
+  --radius-md: 0.625rem; /* 10px */
+  --radius-lg: 0.75rem; /* 12px */
+  --radius-xl: 1rem; /* 16px */
 }
 
-/* Dark theme (default) */
+/* ---------------------------------------------------------------------------
+   COLORS — Dark theme (default). Background #111111 per brief.
+   border-alpha  = incidental dividers / hairlines
+   border-strong = the 2px brutalist edge on cards, panels, controls
+   shadow*       = hard offset shadow color (black on dark for quiet depth)
+--------------------------------------------------------------------------- */
 .dark,
 :root {
-  --surface: 9 9 11; /* #09090B background */
-  --surface-raised: 24 24 27; /* #18181B card */
-  --surface-overlay: 32 32 36; /* menus / hover */
-  --surface-mid: 17 17 19; /* #111113 chrome */
+  --surface: 17 17 17; /* #111111 app background */
+  --surface-raised: 26 26 26; /* #1A1A1A cards pop off the bg */
+  --surface-overlay: 34 34 34; /* #222222 menus / hover */
+  --surface-mid: 22 22 22; /* #161616 chrome (sidebar / top bar / dock) */
+
   --border: 255 255 255;
-  --content: 244 244 245;
-  --content-muted: 161 161 170;
-  --content-subtle: 113 113 122;
-  --border-alpha: 0.06; /* rgba(255,255,255,.06) */
+  --border-alpha: 0.1; /* subtle dividers */
+  --border-strong: 0.2; /* refined bright edge — defined, never blinding */
+
+  --content: 250 250 250; /* #FAFAFA */
+  --content-muted: 163 163 163; /* #A3A3A3 */
+  --content-subtle: 115 115 115; /* #737373 */
+
+  --shadow: 0 0 0; /* black hard shadow reads as depth on #111 */
+  --shadow-alpha: 0.55;
 }
 
+/* ---------------------------------------------------------------------------
+   COLORS — Light theme. Background #F5F5F5, true black brutalist borders.
+--------------------------------------------------------------------------- */
 .light {
-  --surface: 250 250 250;
-  --surface-raised: 255 255 255;
+  --surface: 245 245 245; /* #F5F5F5 */
+  --surface-raised: 255 255 255; /* #FFFFFF */
   --surface-overlay: 255 255 255;
-  --surface-mid: 244 244 245;
-  --border: 9 9 11;
-  --content: 24 24 27;
-  --content-muted: 82 82 91;
-  --content-subtle: 140 140 150;
-  --border-alpha: 0.1;
-  /* Darker tonal variants of the semantic colors so status text/glyphs hold
-     AA contrast on light surfaces (dark theme keeps the brighter 500 shades). */
+  --surface-mid: 255 255 255;
+
+  --border: 17 17 17; /* #111111 ink */
+  --border-alpha: 0.14;
+  --border-strong: 0.92; /* bold, near-solid black edges */
+
+  --content: 17 17 17; /* #111111 */
+  --content-muted: 82 82 91; /* slate-600 */
+  --content-subtle: 120 120 128;
+
+  --shadow: 17 17 17; /* ink hard shadow — classic neo-brutalism */
+  --shadow-alpha: 0.9;
+
+  /* Darker semantic tones hold AA contrast on light surfaces. */
   --success: 22 163 74; /* green-600 */
   --warning: 217 119 6; /* amber-600 */
   --error: 220 38 38; /* red-600 */
 }
 
+/* Default border color for any element that opts into a border utility. */
 * {
   border-color: rgb(var(--border) / var(--border-alpha));
 }
 
-/* Native pointer + tap behaviour for every control. Buttons default to the
-   arrow cursor otherwise, and touch-action removes the 300ms tap delay. */
+/* ---------------------------------------------------------------------------
+   BASE — cursors, tap behaviour, selection, caret
+--------------------------------------------------------------------------- */
 @layer base {
   button:not(:disabled),
   [role='button']:not([aria-disabled='true']),
@@ -71,7 +112,18 @@
   input,
   textarea,
   select {
+    /* Removes the 300ms tap delay for a native feel. */
     touch-action: manipulation;
+  }
+
+  /* Accent text selection + input caret — cheap micro-delight. */
+  ::selection {
+    background-color: rgb(var(--accent) / 0.28);
+    color: rgb(var(--content));
+  }
+  input,
+  textarea {
+    caret-color: rgb(var(--accent));
   }
 }
 
@@ -79,20 +131,27 @@ body {
   background-color: rgb(var(--surface));
   color: rgb(var(--content));
   font-family: var(--font-sans);
+  font-size: 16px; /* comfortable base; blocks iOS input auto-zoom */
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overscroll-behavior-y: none;
-  /* Prevent iOS auto-zoom / tap highlight for a native feel */
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Smooth scrolling, but never fight reduced-motion users. */
+/* Tighter, balanced headings everywhere. */
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -105,62 +164,121 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   Reusable component classes.
-   Glass is used sparingly and only on persistent chrome that never overlaps
-   another glass layer (sidebar, top bar, input dock). Floating popovers use
-   solid `.popover` surfaces so blur layers are never stacked. Blur ≤ 10px.
+   COMPONENT CLASSES
+   Every surface in the app composes one of these. Restyle here = restyle app.
 --------------------------------------------------------------------------- */
 @layer components {
-  .glass {
-    background-color: rgb(var(--surface-mid) / 0.72);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgb(var(--border) / var(--border-alpha));
+  /* Flat accent (was a gradient). One strong colour, monochrome elsewhere. */
+  .accent-gradient {
+    background-color: rgb(var(--accent));
   }
 
-  /* Solid floating surface for menus, dialogs, palettes — no backdrop blur. */
+  /* Persistent chrome: sidebar, top bar, input dock. Solid — no backdrop blur. */
+  .glass {
+    background-color: rgb(var(--surface-mid));
+    border: 2px solid rgb(var(--border) / var(--border-strong));
+  }
+  /* Scoped crisp edges survive the components' own `border-0`. */
+  header.glass {
+    border: 0;
+    border-bottom: 2px solid rgb(var(--border) / var(--border-strong));
+  }
+  aside.glass {
+    border: 0;
+    border-right: 2px solid rgb(var(--border) / var(--border-strong));
+  }
+  /* Prompt-suggestion cards (button.glass) get a tactile hard shadow. */
+  button.glass {
+    box-shadow: 3px 3px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
+  }
+
+  /* Floating solid surface: menus, dialogs, palettes, model list, slash menu. */
   .popover {
     background-color: rgb(var(--surface-overlay));
-    border: 1px solid rgb(var(--border) / calc(var(--border-alpha) * 1.6));
+    border: 2px solid rgb(var(--border) / var(--border-strong));
+  }
+  /* Gentle accent edge when a control inside is focused (e.g. prompt dock). */
+  .popover:focus-within {
+    border-color: rgb(var(--accent) / 0.55);
   }
 
+  /* Layered content card. */
   .card {
     background-color: rgb(var(--surface-raised));
-    border: 1px solid rgb(var(--border) / var(--border-alpha));
+    border: 2px solid rgb(var(--border) / var(--border-strong));
+    box-shadow: 4px 4px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
   }
 
-  .accent-gradient {
-    background-image: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent-soft)));
-  }
-
+  /* Strong, always-visible keyboard focus. */
   .focus-ring {
-    @apply outline-none ring-offset-0 focus-visible:ring-2 focus-visible:ring-accent/70;
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface;
   }
 
-  /* Transitions restricted to GPU-friendly + color props only. Never animate
-     box-shadow, filter, width/height, or border-radius. 120–200ms. */
+  /* -----------------------------------------------------------------------
+     BUTTONS — transform-only motion (150ms). Shadow/filter never animated.
+     Raised variants (surface/primary) lift on hover, press on active.
+  ----------------------------------------------------------------------- */
   .btn {
-    @apply focus-ring inline-flex select-none items-center justify-center gap-2 rounded-xl text-sm font-medium transition-[transform,background-color,color,opacity] duration-150 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+    @apply focus-ring inline-flex select-none items-center justify-center gap-2 rounded-xl text-sm font-medium disabled:pointer-events-none disabled:opacity-50;
+    transition:
+      transform 0.15s ease,
+      background-color 0.15s ease,
+      color 0.15s ease,
+      opacity 0.15s ease;
   }
-
-  .btn-primary {
-    @apply btn accent-gradient text-accent-fg shadow-subtle hover:opacity-90;
+  .btn:active {
+    transform: translateY(1px);
   }
 
   .btn-ghost {
-    @apply btn text-content-muted hover:bg-border/5 hover:text-content;
+    @apply btn text-content-muted;
+  }
+  .btn-ghost:hover {
+    background-color: rgb(var(--border) / 0.06);
+    color: rgb(var(--content));
   }
 
   .btn-surface {
-    @apply btn border border-border bg-surface-raised text-content hover:bg-surface-overlay;
+    @apply btn text-content;
+    background-color: rgb(var(--surface-raised));
+    border: 2px solid rgb(var(--border) / var(--border-strong));
+    box-shadow: 2px 2px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
+  }
+  .btn-surface:hover {
+    transform: translate(-1px, -1px);
+    background-color: rgb(var(--surface-overlay));
+  }
+  .btn-surface:active {
+    transform: translate(1px, 1px);
   }
 
+  .btn-primary {
+    @apply btn text-accent-fg;
+    background-color: rgb(var(--accent));
+    border: 2px solid rgb(var(--border) / var(--border-strong));
+    box-shadow: 2px 2px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
+  }
+  .btn-primary:hover {
+    transform: translate(-1px, -1px);
+    background-color: rgb(var(--accent-soft));
+  }
+  .btn-primary:active {
+    transform: translate(1px, 1px);
+  }
+
+  /* -----------------------------------------------------------------------
+     FORMS
+  ----------------------------------------------------------------------- */
   .input {
-    @apply focus-ring w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-content transition-colors placeholder:text-content-subtle;
+    @apply focus-ring w-full rounded-xl px-3 py-2 text-sm text-content transition-colors placeholder:text-content-subtle;
+    background-color: rgb(var(--surface));
+    border: 2px solid rgb(var(--border) / var(--border-strong));
+  }
+  .input:focus {
+    border-color: rgb(var(--accent) / 0.7);
   }
 
-  /* Native, zero-JS windowing for long chat history. Offscreen messages skip
-     layout/paint; contain-intrinsic-size reserves space to avoid layout shift. */
+  /* Native zero-JS windowing for long chat history. */
   .cv-auto {
     content-visibility: auto;
     contain-intrinsic-size: 0 320px;
@@ -173,31 +291,31 @@ body {
 }
 
 /* ---------------------------------------------------------------------------
-   Scrollbars
+   SCROLLBARS — slim, brutalist thumb
 --------------------------------------------------------------------------- */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: rgb(var(--content-subtle) / 0.4) transparent;
+  scrollbar-color: rgb(var(--content-subtle) / 0.45) transparent;
 }
 .scrollbar-thin::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgb(var(--content-subtle) / 0.35);
+  background-color: rgb(var(--content-subtle) / 0.4);
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgb(var(--content-subtle) / 0.55);
+  background-color: rgb(var(--content-subtle) / 0.65);
 }
 
 /* ---------------------------------------------------------------------------
-   Markdown / prose styling (scoped to .prose-chat)
+   MARKDOWN / PROSE (scoped to .prose-chat)
 --------------------------------------------------------------------------- */
 .prose-chat {
-  @apply text-[0.95rem] leading-7 text-content;
+  @apply text-base leading-7 text-content;
 }
 .prose-chat > *:first-child {
   margin-top: 0;
@@ -206,15 +324,15 @@ body {
   margin-bottom: 0;
 }
 .prose-chat p {
-  margin: 0.75em 0;
+  margin: 0.8em 0;
 }
 .prose-chat h1,
 .prose-chat h2,
 .prose-chat h3,
 .prose-chat h4 {
-  @apply font-semibold tracking-tight text-content;
-  margin: 1.4em 0 0.6em;
-  line-height: 1.3;
+  @apply font-bold tracking-tight text-content;
+  margin: 1.5em 0 0.6em;
+  line-height: 1.25;
 }
 .prose-chat h1 {
   @apply text-2xl;
@@ -227,7 +345,7 @@ body {
 }
 .prose-chat ul,
 .prose-chat ol {
-  margin: 0.75em 0;
+  margin: 0.8em 0;
   padding-left: 1.5em;
 }
 .prose-chat ul {
@@ -237,39 +355,73 @@ body {
   list-style: decimal;
 }
 .prose-chat li {
-  margin: 0.3em 0;
+  margin: 0.35em 0;
+}
+.prose-chat li::marker {
+  color: rgb(var(--accent));
 }
 .prose-chat a {
-  @apply text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent;
+  @apply font-medium text-accent underline decoration-2 underline-offset-2;
+  text-decoration-color: rgb(var(--accent) / 0.4);
+}
+.prose-chat a:hover {
+  text-decoration-color: rgb(var(--accent));
 }
 .prose-chat blockquote {
-  @apply border-l-2 border-accent/50 pl-4 text-content-muted;
-  margin: 1em 0;
+  margin: 1.2em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid rgb(var(--accent));
+  background-color: rgb(var(--accent) / 0.06);
+  color: rgb(var(--content-muted));
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 .prose-chat hr {
-  @apply my-6 border-border;
+  @apply my-6;
+  border: 0;
+  border-top: 2px solid rgb(var(--border) / var(--border-strong));
 }
+/* Inline code — brutalist chip with an edge. */
 .prose-chat code:not(pre code) {
-  @apply rounded-md bg-border/10 px-1.5 py-0.5 font-mono text-[0.85em] text-accent-soft;
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgb(var(--border) / var(--border-strong));
+  background-color: rgb(var(--border) / 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: rgb(var(--accent-soft));
+}
+.dark .prose-chat code:not(pre code) {
+  color: rgb(var(--accent-soft));
+}
+.light .prose-chat code:not(pre code) {
+  color: rgb(var(--accent));
 }
 .prose-chat pre {
   margin: 0;
   background: transparent;
 }
+/* Tables — solid brutalist grid with a hard shadow. */
 .prose-chat table {
-  @apply my-4 w-full border-collapse overflow-hidden rounded-lg text-sm;
+  @apply my-4 w-full border-collapse text-sm;
   display: block;
   overflow-x: auto;
+  border: 2px solid rgb(var(--border) / var(--border-strong));
+  border-radius: var(--radius-md);
+  box-shadow: 3px 3px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
 }
 .prose-chat th,
 .prose-chat td {
-  @apply border border-border px-3 py-2 text-left;
+  border: 1px solid rgb(var(--border) / var(--border-strong));
+  @apply px-3 py-2 text-left;
 }
 .prose-chat th {
-  @apply bg-border/5 font-semibold;
+  background-color: rgb(var(--border) / 0.06);
+  @apply font-bold;
 }
 .prose-chat img {
-  @apply my-3 max-w-full rounded-xl;
+  @apply my-3 max-w-full;
+  border-radius: var(--radius-lg);
+  border: 2px solid rgb(var(--border) / var(--border-strong));
 }
 .prose-chat .katex-display {
   @apply my-4 overflow-x-auto overflow-y-hidden py-1;

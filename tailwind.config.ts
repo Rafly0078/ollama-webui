@@ -33,14 +33,17 @@ const config: Config = {
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
-        xl: '0.875rem',
-        '2xl': '1.125rem',
-        '3xl': '1.375rem', // ~22px cards, within the 18–24px brief
+        // Sharp neo-brutalist corners, 8–16px across the scale.
+        xl: '0.75rem', // 12px
+        '2xl': '0.875rem', // 14px
+        '3xl': '1rem', // 16px — cards, input dock, modals
       },
       boxShadow: {
-        // Very subtle, static shadows only — never animated.
-        subtle: '0 1px 2px 0 rgb(0 0 0 / 0.25)',
-        card: '0 4px 20px -8px rgb(0 0 0 / 0.4)',
+        // Hard offset shadows (0 blur) = brutalist depth, GPU-cheap, never
+        // animated. Driven by --shadow / --shadow-alpha so they read correctly
+        // in both themes (ink on light, black on dark).
+        subtle: '2px 2px 0 0 rgb(var(--shadow) / var(--shadow-alpha))',
+        card: '4px 4px 0 0 rgb(var(--shadow) / var(--shadow-alpha))',
       },
       keyframes: {
         // GPU-only: opacity + translate. No blur/box-shadow/size animation.
