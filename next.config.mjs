@@ -9,6 +9,12 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion'],
   },
+  // These packages do Node-specific things (native requires, internal
+  // circular imports) that break when webpack tries to bundle them for
+  // the Route Handler. Marking them external makes Next.js load them via
+  // plain Node `require` at runtime instead, which avoids the
+  // "Cannot access 'os' before initialization" TDZ error during build.
+  serverExternalPackages: ['exceljs', 'pptxgenjs', 'docx', 'pdf-lib', 'jszip'],
 };
 
 export default nextConfig;

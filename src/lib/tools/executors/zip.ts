@@ -1,10 +1,10 @@
 import 'server-only';
 
 import JSZip from 'jszip';
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
-registerExecutor('zip_project', async (req) => {
+const zipProject: ExecutorFn = async (req) => {
   const zip = new JSZip();
   const files = req.files ?? [];
 
@@ -24,4 +24,6 @@ registerExecutor('zip_project', async (req) => {
     mime: MIME_BY_KIND.zip,
     ext: EXT_BY_KIND.zip,
   };
-});
+};
+
+export default zipProject;

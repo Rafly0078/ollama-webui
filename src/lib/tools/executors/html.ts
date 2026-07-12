@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { parseMarkdown, type Block } from '@/lib/documents/markdown';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
@@ -37,7 +37,7 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-registerExecutor('create_html', async (req) => {
+const createHtml: ExecutorFn = async (req) => {
   const title = req.title ?? req.name ?? 'Document';
   const content = req.content ?? '';
   const blocks = parseMarkdown(content);
@@ -72,4 +72,6 @@ registerExecutor('create_html', async (req) => {
     mime: MIME_BY_KIND.html,
     ext: EXT_BY_KIND.html,
   };
-});
+};
+
+export default createHtml;

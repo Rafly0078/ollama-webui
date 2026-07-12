@@ -1,10 +1,10 @@
 import 'server-only';
 
 import PptxGenJS from 'pptxgenjs';
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND, type SlideSpec } from '../types';
 
-registerExecutor('create_pptx', async (req) => {
+const createPptx: ExecutorFn = async (req) => {
   const pptx = new PptxGenJS();
   pptx.title = req.title ?? req.name ?? 'Presentation';
   pptx.author = 'AI Workspace';
@@ -87,4 +87,6 @@ registerExecutor('create_pptx', async (req) => {
     mime: MIME_BY_KIND.pptx,
     ext: EXT_BY_KIND.pptx,
   };
-});
+};
+
+export default createPptx;

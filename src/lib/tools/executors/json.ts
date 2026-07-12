@@ -1,9 +1,9 @@
 import 'server-only';
 
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
-registerExecutor('create_json', async (req) => {
+const createJson: ExecutorFn = async (req) => {
   let data = req.data ?? req.content ?? '';
 
   // If content is a string, try to parse it as JSON
@@ -23,4 +23,6 @@ registerExecutor('create_json', async (req) => {
     mime: MIME_BY_KIND.json,
     ext: EXT_BY_KIND.json,
   };
-});
+};
+
+export default createJson;

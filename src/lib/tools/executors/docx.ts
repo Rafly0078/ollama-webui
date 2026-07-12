@@ -14,7 +14,7 @@ import {
   BorderStyle,
   convertInchesToTwip,
 } from 'docx';
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { parseMarkdown, type Block } from '@/lib/documents/markdown';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
@@ -96,7 +96,7 @@ function blockToDocx(b: Block): (Paragraph | Table)[] {
   }
 }
 
-registerExecutor('create_docx', async (req) => {
+const createDocx: ExecutorFn = async (req) => {
   const content = req.content ?? '';
   const blocks = parseMarkdown(content);
   const title = req.title ?? req.name ?? 'Document';
@@ -127,4 +127,6 @@ registerExecutor('create_docx', async (req) => {
     mime: MIME_BY_KIND.docx,
     ext: EXT_BY_KIND.docx,
   };
-});
+};
+
+export default createDocx;

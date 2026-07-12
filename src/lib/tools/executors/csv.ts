@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
 function escapeCsvField(val: string | number | boolean | null): string {
@@ -12,7 +12,7 @@ function escapeCsvField(val: string | number | boolean | null): string {
   return s;
 }
 
-registerExecutor('create_csv', async (req) => {
+const createCsv: ExecutorFn = async (req) => {
   const rows = req.rows ?? [];
   const lines = rows.map((row) => row.map(escapeCsvField).join(','));
   const csv = lines.join('\n');
@@ -23,4 +23,6 @@ registerExecutor('create_csv', async (req) => {
     mime: MIME_BY_KIND.csv,
     ext: EXT_BY_KIND.csv,
   };
-});
+};
+
+export default createCsv;

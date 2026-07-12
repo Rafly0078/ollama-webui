@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
 function escapeXml(s: string): string {
@@ -34,7 +34,7 @@ function objectToXml(obj: unknown, indent: number = 0): string {
     .join('\n');
 }
 
-registerExecutor('create_xml', async (req) => {
+const createXml: ExecutorFn = async (req) => {
   let data = req.data ?? req.content ?? '';
 
   if (typeof data === 'string') {
@@ -54,4 +54,6 @@ registerExecutor('create_xml', async (req) => {
     mime: MIME_BY_KIND.xml,
     ext: EXT_BY_KIND.xml,
   };
-});
+};
+
+export default createXml;

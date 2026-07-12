@@ -1,7 +1,7 @@
 import 'server-only';
 
 import ExcelJS from 'exceljs';
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND, type SheetSpec } from '../types';
 
 /** Safely auto-size columns by iterating rows directly. */
@@ -20,7 +20,7 @@ function autoWidth(ws: ExcelJS.Worksheet): void {
   });
 }
 
-registerExecutor('create_xlsx', async (req) => {
+const createXlsx: ExecutorFn = async (req) => {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'AI Workspace';
   workbook.created = new Date();
@@ -75,4 +75,6 @@ registerExecutor('create_xlsx', async (req) => {
     mime: MIME_BY_KIND.xlsx,
     ext: EXT_BY_KIND.xlsx,
   };
-});
+};
+
+export default createXlsx;

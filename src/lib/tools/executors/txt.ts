@@ -1,10 +1,10 @@
 import 'server-only';
 
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { stripInline, parseMarkdown } from '@/lib/documents/markdown';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
-registerExecutor('create_txt', async (req) => {
+const createTxt: ExecutorFn = async (req) => {
   let text = req.content ?? '';
 
   // If content looks like markdown, strip formatting for plain text
@@ -57,4 +57,6 @@ registerExecutor('create_txt', async (req) => {
     mime: MIME_BY_KIND.txt,
     ext: EXT_BY_KIND.txt,
   };
-});
+};
+
+export default createTxt;

@@ -1,9 +1,9 @@
 import 'server-only';
 
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
-registerExecutor('create_md', async (req) => {
+const createMd: ExecutorFn = async (req) => {
   const title = req.title ?? req.name ?? 'Document';
   let content = req.content ?? '';
 
@@ -19,4 +19,6 @@ registerExecutor('create_md', async (req) => {
     mime: MIME_BY_KIND.md,
     ext: EXT_BY_KIND.md,
   };
-});
+};
+
+export default createMd;

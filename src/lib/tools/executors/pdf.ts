@@ -1,11 +1,11 @@
 import 'server-only';
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { registerExecutor } from './index';
+import type { ExecutorFn } from './index';
 import { stripInline, parseMarkdown, type Block } from '@/lib/documents/markdown';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
 
-registerExecutor('create_pdf', async (req) => {
+const createPdf: ExecutorFn = async (req) => {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -207,4 +207,6 @@ registerExecutor('create_pdf', async (req) => {
     mime: MIME_BY_KIND.pdf,
     ext: EXT_BY_KIND.pdf,
   };
-});
+};
+
+export default createPdf;
