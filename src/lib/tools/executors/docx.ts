@@ -6,7 +6,6 @@ import {
   Paragraph,
   TextRun,
   HeadingLevel,
-  AlignmentType,
   Table,
   TableRow,
   TableCell,

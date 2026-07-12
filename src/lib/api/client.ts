@@ -67,11 +67,12 @@ function mapModel(raw: RawModel): ModelInfo {
 }
 
 /**
- * All traffic goes through the same-origin Local AI Bridge. The bridge handles
- * upstream endpoint fallbacks server-side, so the client uses one path each.
+ * The browser talks directly to the Ollama-compatible endpoint configured via
+ * NEXT_PUBLIC_API_URL / the Settings override — no server-side proxy, so long
+ * chat generations aren't bound by a Vercel function's execution time limit.
  */
-const API_TAG_PATHS = ['/api/bridge/models'];
-const API_CHAT_PATHS = ['/api/bridge/chat'];
+const API_TAG_PATHS = ['/api/tags', '/api/models'];
+const API_CHAT_PATHS = ['/api/chat', '/api/chat/stream'];
 
 async function fetchWithFallback(
   paths: string[],

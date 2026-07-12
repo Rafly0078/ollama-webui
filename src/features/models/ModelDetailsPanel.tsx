@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { Loader2, AlertCircle, Cpu, Eye, HardDrive, Hash, Layers, BookOpen, FileText } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { useModelDetails, type ModelDetails } from './use-model-details';
+import { useModelDetails } from './use-model-details';
 import type { ModelInfo } from '@/types';
 import { formatBytes, formatNumber } from '@/lib/utils/format';
 

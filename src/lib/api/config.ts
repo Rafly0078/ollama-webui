@@ -25,31 +25,27 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
 export const STREAM_IDLE_TIMEOUT_MS = 120_000;
 
 /**
- * Whether the app can reach a model backend. Traffic now flows through the
- * same-origin bridge, whose upstream is a server-only env var the browser can't
- * read — so we optimistically report configured and let real errors surface at
- * request time. An explicit public opt-out lets a static/guest-only deploy hide
- * chat if desired.
+ * Whether the app can reach a model backend — true when a direct Ollama URL
+ * is configured (build-time NEXT_PUBLIC_API_URL, or a per-browser override
+ * set in Settings).
  */
 export function apiConfigured(): boolean {
   if (process.env.NEXT_PUBLIC_DISABLE_BRIDGE === 'true') return false;
-  return true;
+  return Boolean(getApiBase());
 }
 
 /**
- * Build a URL for a request. All chat/model traffic now goes through the
- * same-origin Local AI Bridge (`/api/bridge/*`), which proxies to Ollama
- * server-side — the upstream URL is never exposed to the browser. Bridge paths
- * are returned as-is (relative); any other path still resolves against the
- * configured base for backward compatibility.
+ * Build a URL for a request. The browser talks directly to the configured
+ * Ollama-compatible endpoint (getApiBase()) — no server-side proxy involved,
+ * so a single long-running chat generation isn't bound by any serverless
+ * function time limit.
  */
 export function apiUrl(path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`;
-  if (normalized.startsWith('/api/bridge')) return normalized; // same-origin
   const base = getApiBase();
   if (!base) {
     throw new ApiError(
-      'API endpoint is not configured. Set OLLAMA_API_URL (server) or NEXT_PUBLIC_API_URL.',
+      'API endpoint is not configured. Set NEXT_PUBLIC_API_URL, or set an API URL in Settings.',
       { kind: 'config' },
     );
   }

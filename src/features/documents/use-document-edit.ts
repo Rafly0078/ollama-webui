@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import type { Artifact, GenerateRequest } from '@/lib/tools/types';
 import { useChatStore } from '@/lib/store/chat-store';
+import { apiUrl } from '@/lib/api/config';
 
 export interface DocumentEditState {
   /** The original uploaded file */
@@ -57,7 +58,7 @@ export function useDocumentEdit(conversationId: string | null) {
         ? `${systemPrompt}\n\nImprove and refine the following document content. Maintain the original structure and meaning while improving clarity, grammar, and formatting:\n\n${state.extractedContent}`
         : `Improve and refine the following document content. Maintain the original structure and meaning while improving clarity, grammar, and formatting:\n\n${state.extractedContent}`;
 
-      const res = await fetch('/api/bridge/chat', {
+      const res = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -164,7 +164,7 @@ export function useChat(conversationId: string | null) {
         store.getState().setGenerating(null);
       }
     },
-    [store],
+    [store, processArtifacts],
   );
 
   const send = useCallback(

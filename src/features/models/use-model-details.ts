@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { ApiError } from '@/lib/api/config';
+import { ApiError, apiUrl } from '@/lib/api/config';
 
 export interface ModelDetails {
   name: string;
@@ -32,7 +32,7 @@ export function useModelDetails() {
   const fetchDetails = useCallback(async (modelName: string) => {
     setState({ details: null, loading: true, error: null });
     try {
-      const res = await fetch('/api/bridge/show', {
+      const res = await fetch(apiUrl('/api/show'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: modelName }),

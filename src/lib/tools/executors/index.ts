@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { Artifact, ArtifactKind, GenerateRequest, ToolName } from '../types';
+import type { ArtifactKind, GenerateRequest, ToolName } from '../types';
 import createPdf from './pdf';
 import createDocx from './docx';
 import createPptx from './pptx';

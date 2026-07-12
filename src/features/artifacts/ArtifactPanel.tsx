@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import type { Artifact, ArtifactKind } from '@/lib/tools/types';
 import { Tooltip } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils/cn';
 
 interface Props {
   artifacts: Artifact[];

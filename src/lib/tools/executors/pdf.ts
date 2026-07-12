@@ -86,12 +86,12 @@ const createPdf: ExecutorFn = async (req) => {
         const sz = b.level === 1 ? 20 : b.level === 2 ? 16 : 13;
         ensureSpace(sz + 10);
         y -= 8;
-        drawLine(b.text, { bold: true, size: sz });
+        drawLine(stripInline(b.text), { bold: true, size: sz });
         y -= 4;
         break;
       }
       case 'paragraph': {
-        for (const line of wrapText(b.text, maxChars)) {
+        for (const line of wrapText(stripInline(b.text), maxChars)) {
           drawLine(line);
         }
         y -= 6;
@@ -100,17 +100,15 @@ const createPdf: ExecutorFn = async (req) => {
       case 'list': {
         b.items.forEach((item, i) => {
           const prefix = b.ordered ? `${i + 1}. ` : '• ';
-          for (const line of wrapText(item, maxChars - 2)) {
+          for (const line of wrapText(stripInline(item), maxChars - 2)) {
             drawLine(`${prefix}${line}`);
-            prefix.length; // just to keep prefix in scope
           }
         });
         y -= 4;
         break;
       }
       case 'quote': {
-        const oldX = marginX;
-        for (const line of wrapText(b.text, maxChars - 4)) {
+        for (const line of wrapText(stripInline(b.text), maxChars - 4)) {
           ensureSpace(lineHeight);
           page.drawText(`  ${line}`, {
             x: marginX + 20,
@@ -122,7 +120,6 @@ const createPdf: ExecutorFn = async (req) => {
           y -= lineHeight;
         }
         y -= 4;
-        void oldX;
         break;
       }
       case 'code': {
@@ -165,7 +162,7 @@ const createPdf: ExecutorFn = async (req) => {
         // Header
         ensureSpace(lineHeight + 4);
         b.header.forEach((h, ci) => {
-          page.drawText(h.slice(0, Math.floor(colW / 5)), {
+          page.drawText(stripInline(h).slice(0, Math.floor(colW / 5)), {
             x: marginX + ci * colW + 4,
             y,
             size: fontSize,
@@ -179,7 +176,7 @@ const createPdf: ExecutorFn = async (req) => {
           ensureSpace(lineHeight);
           row.forEach((cell, ci) => {
             if (ci < cols) {
-              page.drawText(cell.slice(0, Math.floor(colW / 5)), {
+              page.drawText(stripInline(cell).slice(0, Math.floor(colW / 5)), {
                 x: marginX + ci * colW + 4,
                 y,
                 size: fontSize,

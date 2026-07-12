@@ -1,7 +1,6 @@
 'use client';
 
 import { m } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
 import { PROMPT_SUGGESTIONS } from '@/lib/store/defaults';
 
 const PROMPT_CARD_TONES = ['prompt-card-paper', 'prompt-card-coral', 'prompt-card-sun', 'prompt-card-sky'];

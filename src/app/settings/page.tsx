@@ -167,17 +167,19 @@ export default function SettingsPage() {
         <Section icon={Server} title="Connection">
           <Field
             label="API URL"
-            hint="Overrides NEXT_PUBLIC_API_URL for this browser. Leave blank to use the build-time value."
+            hint="Your Ollama server's public URL (e.g. a Cloudflare Tunnel address). Overrides NEXT_PUBLIC_API_URL for this browser only."
           >
             <input
               value={s.apiUrlOverride}
               onChange={(e) => s.setApiUrlOverride(e.target.value)}
-              placeholder={API_BASE_URL || 'https://my-ollama-api.example.com'}
+              placeholder={API_BASE_URL || 'https://my-ollama-tunnel.trycloudflare.com'}
               className="input font-mono text-sm"
               spellCheck={false}
             />
             <p className="mt-1.5 text-xs text-content-subtle">
-              Active endpoint: <code className="text-accent-soft">{API_BASE_URL || '(unset)'}</code>
+              Active endpoint: <code className="text-accent-soft">{API_BASE_URL || '(unset)'}</code> — the
+              browser connects to this directly, so make sure CORS is enabled on the Ollama server
+              (<code className="text-accent-soft">OLLAMA_ORIGINS</code>).
             </p>
           </Field>
           <Field label="Default model">

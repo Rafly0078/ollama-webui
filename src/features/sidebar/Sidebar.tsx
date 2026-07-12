@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import Link from 'next/link';
-import { Plus, Search, Sparkles, Settings2, X } from 'lucide-react';
+import { Plus, Search, Settings2, X } from 'lucide-react';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useSettings } from '@/lib/store/settings-store';
 import { ChatListItem } from './ChatListItem';
