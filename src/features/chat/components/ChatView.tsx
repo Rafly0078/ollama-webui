@@ -112,6 +112,7 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
         onStop={stop}
         onSlashCommand={handleSlash}
         visionCapable={visionCapable}
+        conversationId={conversation.id}
       />
 
       <ParamsPanel

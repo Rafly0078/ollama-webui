@@ -1,12 +1,14 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { Attachment, Message } from '@/types';
 import { useChatStore } from '@/lib/store/chat-store';
 import { ApiError } from '@/lib/api/config';
 import { streamChat } from '@/lib/api/client';
 import { toApiMessages, toApiOptions, type ChatStreamChunk } from '@/lib/api/types';
 import { uid } from '@/lib/utils/id';
+import { detectArtifacts } from '@/lib/tools/detect';
+import type { Artifact } from '@/lib/tools/types';
 
 /**
  * The controller for the in-flight generation. Kept at module scope (only one
@@ -45,6 +47,48 @@ function metricsFromChunk(final: ChatStreamChunk, startedAt: number) {
 
 export function useChat(conversationId: string | null) {
   const store = useChatStore;
+  const executingRef = useRef<Set<string>>(new Set());
+
+  /** Detect artifact directives in a completed message and execute them. */
+  const processArtifacts = useCallback(
+    async (convoId: string, messageId: string, content: string) => {
+      const { requests, cleaned } = detectArtifacts(content);
+      if (requests.length === 0) return;
+      // Avoid double-execution if already in progress
+      if (executingRef.current.has(messageId)) return;
+      executingRef.current.add(messageId);
+
+      // Strip artifact blocks from displayed content
+      store.getState().updateMessage(convoId, messageId, { content: cleaned });
+
+      const results = await Promise.allSettled(
+        requests.map(async (req) => {
+          const res = await fetch('/api/tools/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...req, conversationId: convoId, messageId }),
+          });
+          if (!res.ok) throw new Error(`Tool execution failed (${res.status})`);
+          const { artifact } = (await res.json()) as { artifact: Artifact };
+          return artifact;
+        }),
+      );
+      const artifacts = results
+        .filter((r): r is PromiseFulfilledResult<Artifact> => r.status === 'fulfilled')
+        .map((r) => r.value);
+      if (artifacts.length > 0) {
+        const msg = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((m) => m.id === messageId);
+        if (msg) {
+          const existing = (msg.metadata?.artifacts as Artifact[]) ?? [];
+          store.getState().updateMessage(convoId, messageId, {
+            metadata: { ...msg.metadata, artifacts: [...existing, ...artifacts] },
+          });
+        }
+      }
+      executingRef.current.delete(messageId);
+    },
+    [store],
+  );
 
   const stop = useCallback(() => {
     stopActiveGeneration();
@@ -86,10 +130,13 @@ export function useChat(conversationId: string | null) {
           {
             onDelta: (delta) => store.getState().appendToMessage(convoId, assistantId, delta),
             onDone: (final) => {
+              const finalContent = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((m) => m.id === assistantId)?.content ?? '';
               store.getState().updateMessage(convoId, assistantId, {
                 streaming: false,
                 metrics: metricsFromChunk(final, startedAt),
               });
+              // Detect and execute artifact directives after streaming completes
+              void processArtifacts(convoId, assistantId, finalContent);
             },
           },
           controller.signal,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { ArrowUp, Loader2, Paperclip, Square, X, Command } from 'lucide-react';
+import { ArrowUp, FileText, Loader2, Paperclip, Square, X, Command } from 'lucide-react';
 import type { Attachment } from '@/types';
 import { fileToAttachment } from '@/lib/utils/files';
 import { estimateTokens } from '@/lib/utils/format';
@@ -11,6 +11,7 @@ import { useSettings } from '@/lib/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { Tooltip } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils/cn';
+import { DocumentEditDialog } from '@/features/documents/DocumentEditDialog';
 
 interface Props {
   disabled?: boolean;
@@ -19,6 +20,7 @@ interface Props {
   onStop: () => void;
   onSlashCommand: (command: string) => void;
   visionCapable?: boolean;
+  conversationId?: string | null;
 }
 
 const MAX_TEXTAREA_PX = 220;
@@ -30,7 +32,9 @@ export function ChatInput({
   onStop,
   onSlashCommand,
   visionCapable,
+  conversationId,
 }: Props) {
+  const [docEditOpen, setDocEditOpen] = useState(false);
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [dragging, setDragging] = useState(false);
@@ -244,6 +248,16 @@ export function ChatInput({
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
             </button>
           </Tooltip>
+          <Tooltip label="Edit a document with AI">
+            <button
+              onClick={() => setDocEditOpen(true)}
+              disabled={disabled}
+              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
+              aria-label="Document editor"
+            >
+              <FileText className="h-5 w-5" />
+            </button>
+          </Tooltip>
           <input
             ref={fileInputRef}
             type="file"
@@ -300,6 +314,12 @@ export function ChatInput({
         </span>
         {showTokenCounter && value.trim() && <span className="tabular-nums">~{tokenCount} tokens</span>}
       </div>
+
+      <DocumentEditDialog
+        open={docEditOpen}
+        onClose={() => setDocEditOpen(false)}
+        conversationId={conversationId ?? null}
+      />
     </div>
   );
 }

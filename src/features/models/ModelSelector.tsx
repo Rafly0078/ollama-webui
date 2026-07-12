@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { Check, ChevronDown, Cpu, Eye, RefreshCw, AlertCircle } from 'lucide-react';
+import { Check, ChevronDown, Cpu, Eye, Info, RefreshCw, AlertCircle } from 'lucide-react';
 import type { ModelInfo } from '@/types';
 import { useModels } from './use-models';
+import { ModelDetailsPanel } from './ModelDetailsPanel';
 import { formatBytes, formatNumber } from '@/lib/utils/format';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils/cn';
@@ -17,6 +18,8 @@ interface Props {
 export function ModelSelector({ value, onChange }: Props) {
   const { models, loading, error, reload } = useModels();
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsModel, setDetailsModel] = useState<ModelInfo | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,6 +39,7 @@ export function ModelSelector({ value, onChange }: Props) {
 
   return (
     <div ref={ref} className="relative">
+      <ModelDetailsPanel open={detailsOpen} onClose={() => setDetailsOpen(false)} model={detailsModel} />
       <button
         onClick={() => setOpen((o) => !o)}
         className="btn-surface h-9 max-w-[60vw] gap-2 px-3 sm:max-w-xs"
@@ -108,6 +112,11 @@ export function ModelSelector({ value, onChange }: Props) {
                   onChange(model.name);
                   setOpen(false);
                 }}
+                onDetails={() => {
+                  setDetailsModel(model);
+                  setDetailsOpen(true);
+                  setOpen(false);
+                }}
               />
             ))}
           </m.div>
@@ -121,10 +130,12 @@ function ModelRow({
   model,
   selected,
   onSelect,
+  onDetails,
 }: {
   model: ModelInfo;
   selected: boolean;
   onSelect: () => void;
+  onDetails: () => void;
 }) {
   const chips = [
     model.details.parameterSize,
@@ -152,17 +163,23 @@ function ModelRow({
           <span className="truncate font-medium text-content">{model.label}</span>
           {model.supportsVision && <Eye className="h-3.5 w-3.5 shrink-0 text-accent-soft" />}
         </div>
-        {chips.length > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {chips.map((c, i) => (
-              <span
-                key={i}
-                className="rounded-md bg-border/5 px-1.5 py-0.5 text-[0.68rem] tabular-nums text-content-subtle"
+        {chips.length > 0 && (        <div className="mt-1 flex flex-wrap items-center gap-1">
+              {chips.map((c, i) => (
+                <span
+                  key={i}
+                  className="rounded-md bg-border/5 px-1.5 py-0.5 text-[0.68rem] tabular-nums text-content-subtle"
+                >
+                  {c}
+                </span>
+              ))}
+              <button
+                onClick={(e) => { e.stopPropagation(); onDetails(); }}
+                className="rounded-md p-0.5 text-content-subtle hover:text-accent"
+                aria-label="Model details"
               >
-                {c}
-              </span>
-            ))}
-          </div>
+                <Info className="h-3 w-3" />
+              </button>
+            </div>
         )}
       </div>
     </button>
