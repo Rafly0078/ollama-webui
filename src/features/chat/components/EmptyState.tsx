@@ -15,7 +15,9 @@ export function EmptyState({ onPick }: { onPick: (prompt: string) => void }) {
         transition={{ type: 'spring', stiffness: 200, damping: 18 }}
         className="accent-gradient mb-7 flex h-16 w-16 items-center justify-center rounded-md border-[3px] border-border shadow-card"
       >
-        <Sparkles className="h-8 w-8 text-accent-fg" />
+        <span>
+            <img src="/noun-heart-8300361 (1).png" alt="Logo" className="h-6 w-6" />
+          </span>
       </m.div>
       <m.h1
         initial={{ opacity: 0, y: 8 }}

@@ -40,9 +40,11 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-4">
         <div className="accent-gradient flex h-10 w-10 items-center justify-center rounded-md border-[3px] border-border shadow-card">
-          <Sparkles className="h-4 w-4 text-accent-fg" />
+          <span>
+            <img src="/noun-atom-8300355 (1).png" alt="Logo" className="h-6 w-6" />
+          </span>
         </div>
-        <span className="flex-1 text-lg font-bold uppercase tracking-[-0.06em] text-content">Ollama Chat</span>
+        <span className="flex-1 text-lg font-bold uppercase tracking-[-0.06em] text-content">AI Chat</span>
         {isMobile && (
           <button onClick={onClose} className="btn-ghost h-8 w-8 rounded-lg" aria-label="Close sidebar">
             <X className="h-5 w-5" />
