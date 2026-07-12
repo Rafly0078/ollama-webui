@@ -45,6 +45,8 @@ export interface Message {
   streaming?: boolean;
   /** Set when generation failed, holds a user-facing message. */
   error?: string;
+  /** Arbitrary metadata — used by the tool engine to attach artifacts, etc. */
+  metadata?: Record<string, unknown>;
 }
 
 /** Per-conversation generation parameters. Falls back to global settings. */

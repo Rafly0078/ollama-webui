@@ -66,9 +66,12 @@ function mapModel(raw: RawModel): ModelInfo {
   };
 }
 
-/** GET /api/models — list installed models. */
-const API_TAG_PATHS = ['/api/tags', '/api/models'];
-const API_CHAT_PATHS = ['/api/chat', '/api/chat/stream'];
+/**
+ * All traffic goes through the same-origin Local AI Bridge. The bridge handles
+ * upstream endpoint fallbacks server-side, so the client uses one path each.
+ */
+const API_TAG_PATHS = ['/api/bridge/models'];
+const API_CHAT_PATHS = ['/api/bridge/chat'];
 
 async function fetchWithFallback(
   paths: string[],

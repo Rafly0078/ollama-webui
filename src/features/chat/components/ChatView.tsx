@@ -13,6 +13,8 @@ import { ParamsPanel } from './ParamsPanel';
 import { SystemPromptEditor } from './SystemPromptEditor';
 import type { MessageActions } from './MessageBubble';
 import { useToast } from '@/components/ui/toast';
+import { ArtifactPanel } from '@/features/artifacts/ArtifactPanel';
+import type { Artifact } from '@/lib/tools/types';
 
 interface Props {
   conversation: Conversation;
@@ -51,6 +53,15 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
     [conversation.id, deleteMessage, editUserMessage, regenerate, continueGeneration],
   );
 
+  // Collect all artifacts from all assistant messages in this conversation
+  const allArtifacts: Artifact[] = useMemo(
+    () =>
+      conversation.messages
+        .filter((m) => m.role === 'assistant' && !m.streaming)
+        .flatMap((m) => (m.metadata?.artifacts as Artifact[]) ?? []),
+    [conversation.messages],
+  );
+
   const handleSlash = (command: string) => {
     switch (command) {
       case '/system':
@@ -84,7 +95,10 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
       />
 
       {hasMessages ? (
-        <MessageList conversation={conversation} generating={generating} actions={actions} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <MessageList conversation={conversation} generating={generating} actions={actions} />
+          {allArtifacts.length > 0 && <ArtifactPanel artifacts={allArtifacts} />}
+        </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
           <EmptyState onPick={(prompt) => void send(prompt, [])} />

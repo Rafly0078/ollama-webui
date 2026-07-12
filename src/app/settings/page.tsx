@@ -29,6 +29,7 @@ import { API_BASE_URL } from '@/lib/api/config';
 import { downloadText } from '@/lib/utils/export';
 import { uid } from '@/lib/utils/id';
 import { cn } from '@/lib/utils/cn';
+import { AccountSection } from '@/features/auth/AccountSection';
 import type { Conversation, PromptPreset } from '@/types';
 
 export default function SettingsPage() {
@@ -97,9 +98,12 @@ export default function SettingsPage() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-content">Settings</h1>
-            <p className="text-sm text-content-muted">Everything is stored locally in your browser.</p>
+            <p className="text-sm text-content-muted">Synced to your account when signed in; local otherwise.</p>
           </div>
         </div>
+
+        {/* Account */}
+        <AccountSection />
 
         {/* Appearance */}
         <Section icon={Palette} title="Appearance">
