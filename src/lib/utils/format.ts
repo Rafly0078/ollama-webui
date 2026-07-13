@@ -23,6 +23,13 @@ export function formatNumber(n?: number): string {
   return new Intl.NumberFormat().format(n);
 }
 
+/** Compact number for tight spaces: 950, 12.4K, 1.2M. */
+export function formatCompact(n: number): string {
+  if (n < 1000) return `${Math.round(n)}`;
+  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}K`;
+  return `${(n / 1_000_000).toFixed(1)}M`;
+}
+
 /**
  * Cheap, dependency-free token estimate. Not exact (real count comes from the
  * API's eval_count), but good enough for a live counter while typing.

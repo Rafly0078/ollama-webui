@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { ACCENT_PRESETS } from '@/lib/store/defaults';
 import { useSettings } from '@/lib/store/settings-store';
 import { useMediaQuery } from '@/lib/hooks/use-media-query';
-import { setApiOverride } from '@/lib/api/config';
+import { setApiOverride, setConnectionMode } from '@/lib/api/config';
 
 /**
  * Applies theme (dark/light/system) and accent color to the document root by
@@ -15,11 +15,16 @@ export function ThemeManager({ children }: { children: React.ReactNode }) {
   const theme = useSettings((s) => s.theme);
   const accent = useSettings((s) => s.accent);
   const apiUrlOverride = useSettings((s) => s.apiUrlOverride);
+  const connectionMode = useSettings((s) => s.connectionMode);
   const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
 
   useEffect(() => {
     setApiOverride(apiUrlOverride);
   }, [apiUrlOverride]);
+
+  useEffect(() => {
+    setConnectionMode(connectionMode);
+  }, [connectionMode]);
 
   useEffect(() => {
     const root = document.documentElement;

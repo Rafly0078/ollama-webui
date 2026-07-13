@@ -48,6 +48,7 @@ export default function SettingsPage() {
       theme: s.theme,
       accent: s.accent,
       apiUrlOverride: s.apiUrlOverride,
+      connectionMode: s.connectionMode,
       defaultModel: s.defaultModel,
       defaultSystemPrompt: s.defaultSystemPrompt,
       defaultParams: s.defaultParams,
@@ -166,22 +167,62 @@ export default function SettingsPage() {
         {/* Connection */}
         <Section icon={Server} title="Connection">
           <Field
-            label="API URL"
-            hint="Your Ollama server's public URL (e.g. a Cloudflare Tunnel address). Overrides NEXT_PUBLIC_API_URL for this browser only."
+            label="Connection mode"
+            hint={
+              s.connectionMode === 'direct'
+                ? 'Browser talks straight to Ollama. No duration limit, but the Ollama server needs CORS enabled (OLLAMA_ORIGINS).'
+                : "Routed through this app's server, which forwards to Ollama. No CORS setup needed, but a single reply is capped by the host's function duration (e.g. ~300s on Vercel Hobby)."
+            }
           >
-            <input
-              value={s.apiUrlOverride}
-              onChange={(e) => s.setApiUrlOverride(e.target.value)}
-              placeholder={API_BASE_URL || 'https://my-ollama-tunnel.trycloudflare.com'}
-              className="input font-mono text-sm"
-              spellCheck={false}
-            />
-            <p className="mt-1.5 text-xs text-content-subtle">
-              Active endpoint: <code className="text-accent-soft">{API_BASE_URL || '(unset)'}</code> — the
-              browser connects to this directly, so make sure CORS is enabled on the Ollama server
-              (<code className="text-accent-soft">OLLAMA_ORIGINS</code>).
-            </p>
+            <div className="flex gap-2">
+              {(
+                [
+                  { value: 'direct', label: 'Direct' },
+                  { value: 'bridge', label: 'Via server' },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => s.setConnectionMode(opt.value)}
+                  className={cn(
+                    'btn-surface h-9 flex-1',
+                    s.connectionMode === opt.value && 'border-accent/50 bg-accent/10 text-content',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </Field>
+
+          {s.connectionMode === 'direct' ? (
+            <Field
+              label="API URL"
+              hint="Your Ollama server's public URL (e.g. a Cloudflare Tunnel address). Overrides NEXT_PUBLIC_API_URL for this browser only."
+            >
+              <input
+                value={s.apiUrlOverride}
+                onChange={(e) => s.setApiUrlOverride(e.target.value)}
+                placeholder={API_BASE_URL || 'https://my-ollama-tunnel.trycloudflare.com'}
+                className="input font-mono text-sm"
+                spellCheck={false}
+              />
+              <p className="mt-1.5 text-xs text-content-subtle">
+                Active endpoint: <code className="text-accent-soft">{API_BASE_URL || '(unset)'}</code> — the
+                browser connects to this directly, so make sure CORS is enabled on the Ollama server
+                (<code className="text-accent-soft">OLLAMA_ORIGINS</code>).
+              </p>
+            </Field>
+          ) : (
+            <Field label="Server endpoint">
+              <p className="text-xs text-content-subtle">
+                Requests go to <code className="text-accent-soft">/api/bridge/*</code> on this app&apos;s
+                server, which forwards to the <code className="text-accent-soft">OLLAMA_API_URL</code>{' '}
+                configured in the deployment&apos;s environment variables — nothing to set here.
+              </p>
+            </Field>
+          )}
+
           <Field label="Default model">
             <select
               value={s.defaultModel}

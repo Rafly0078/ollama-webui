@@ -24,24 +24,62 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
 /** Streaming has no fixed length; use a longer idle guard instead. */
 export const STREAM_IDLE_TIMEOUT_MS = 120_000;
 
+export type ConnectionMode = 'direct' | 'bridge';
+
+// Set from Settings (persisted) via ThemeManager, same pattern as the URL override.
+let connectionMode: ConnectionMode = 'direct';
+
+/** Switch between talking to Ollama directly and routing through the same-origin server proxy. */
+export function setConnectionMode(mode: ConnectionMode): void {
+  connectionMode = mode;
+}
+
+export function getConnectionMode(): ConnectionMode {
+  return connectionMode;
+}
+
+/** Real Ollama endpoint path -> same-origin bridge route that proxies it server-side. */
+const BRIDGE_ROUTES: Record<string, string> = {
+  '/api/chat': '/api/bridge/chat',
+  '/api/chat/stream': '/api/bridge/chat',
+  '/api/tags': '/api/bridge/models',
+  '/api/models': '/api/bridge/models',
+  '/api/show': '/api/bridge/show',
+};
+
 /**
- * Whether the app can reach a model backend — true when a direct Ollama URL
- * is configured (build-time NEXT_PUBLIC_API_URL, or a per-browser override
- * set in Settings).
+ * Whether the app can reach a model backend.
+ * - direct mode: true when a direct Ollama URL is configured (build-time
+ *   NEXT_PUBLIC_API_URL, or a per-browser override set in Settings).
+ * - bridge mode: true as soon as the server proxy is enabled — its upstream
+ *   is a server-only env var the browser can't read, so we optimistically
+ *   report configured and let real errors surface at request time.
  */
 export function apiConfigured(): boolean {
-  if (process.env.NEXT_PUBLIC_DISABLE_BRIDGE === 'true') return false;
+  if (connectionMode === 'bridge') {
+    return process.env.NEXT_PUBLIC_DISABLE_BRIDGE !== 'true';
+  }
   return Boolean(getApiBase());
 }
 
 /**
- * Build a URL for a request. The browser talks directly to the configured
- * Ollama-compatible endpoint (getApiBase()) — no server-side proxy involved,
- * so a single long-running chat generation isn't bound by any serverless
- * function time limit.
+ * Build a URL for a request.
+ * - direct mode (default): the browser talks straight to the configured
+ *   Ollama-compatible endpoint — no server-side proxy involved, so a single
+ *   long-running chat generation isn't bound by any serverless function time
+ *   limit. Requires CORS (OLLAMA_ORIGINS) on the Ollama server.
+ * - bridge mode: routed through the same-origin `/api/bridge/*` proxy, which
+ *   forwards to a server-only OLLAMA_API_URL. No CORS setup needed, but a
+ *   single request is capped by the hosting platform's function duration
+ *   limit (e.g. 300s on Vercel Hobby).
  */
 export function apiUrl(path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`;
+
+  if (connectionMode === 'bridge') {
+    return BRIDGE_ROUTES[normalized] ?? normalized; // same-origin
+  }
+
   const base = getApiBase();
   if (!base) {
     throw new ApiError(
@@ -91,7 +129,9 @@ export class ApiError extends Error {
       case 'config':
         return this.message;
       case 'network':
-        return 'Connection failed. The API server may be offline or blocking this origin (CORS).';
+        return connectionMode === 'bridge'
+          ? 'Connection failed. The Ollama server may be offline or unreachable from Vercel.'
+          : 'Connection failed. The API server may be offline or blocking this origin (CORS).';
       case 'timeout':
         return 'The request timed out. The server took too long to respond.';
       case 'aborted':

@@ -27,6 +27,7 @@ import {
   slugify,
 } from '@/lib/utils/export';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
+import { ContextMeter } from './ContextMeter';
 
 interface Props {
   conversation: Conversation;
@@ -77,6 +78,7 @@ export function TopBar({ conversation, onToggleSidebar, onOpenParams, onOpenSyst
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-1 sm:flex-none">
+        <ContextMeter conversation={conversation} />
         <ConnectionStatus />
 
         <Tooltip label="System prompt" side="bottom">
