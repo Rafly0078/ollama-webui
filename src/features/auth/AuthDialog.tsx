@@ -8,8 +8,23 @@ import { useAuth, type OAuthProvider } from './AuthProvider';
 
 type Mode = 'signin' | 'signup' | 'magic';
 
-/** Sign-in / sign-up dialog. Email password, magic link, OAuth, and guest. */
-export function AuthDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * Sign-in / sign-up dialog. Email password, magic link, OAuth, and guest.
+ *
+ * Pass `mandatory` when this is gating the whole app (see `AuthGate`): it
+ * hides the "Continue as guest" bypass and makes the dialog undismissable
+ * (no X, no Escape, no backdrop click) since the person must actually sign
+ * in to proceed.
+ */
+export function AuthDialog({
+  open,
+  onClose,
+  mandatory = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  mandatory?: boolean;
+}) {
   const auth = useAuth();
   const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
@@ -67,9 +82,18 @@ export function AuthDialog({ open, onClose }: { open: boolean; onClose: () => vo
   }
 
   const title = mode === 'signup' ? 'Create account' : mode === 'magic' ? 'Email sign-in link' : 'Sign in';
+  const description = mandatory
+    ? 'Sign in to use Ollama Chat — an account is required.'
+    : 'Sync your workspace across devices.';
 
   return (
-    <Modal open={open} onClose={onClose} title={title} description="Sync your workspace across devices.">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      dismissible={!mandatory}
+    >
       <div className="flex flex-col gap-4">
         {/* OAuth */}
         <div className="grid grid-cols-2 gap-3">
@@ -147,9 +171,11 @@ export function AuthDialog({ open, onClose }: { open: boolean; onClose: () => vo
               </button>
             )}
           </div>
-          <button type="button" className="underline" onClick={guest} disabled={Boolean(busy)}>
-            {busy === 'guest' ? 'Starting…' : 'Continue as guest'}
-          </button>
+          {!mandatory && (
+            <button type="button" className="underline" onClick={guest} disabled={Boolean(busy)}>
+              {busy === 'guest' ? 'Starting…' : 'Continue as guest'}
+            </button>
+          )}
         </div>
       </div>
     </Modal>

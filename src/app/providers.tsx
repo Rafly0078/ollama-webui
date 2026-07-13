@@ -4,6 +4,7 @@ import { LazyMotion, domAnimation, MotionConfig } from 'framer-motion';
 import { ThemeManager } from './theme-manager';
 import { ToastProvider } from '@/components/ui/toast';
 import { AuthProvider } from '@/features/auth/AuthProvider';
+import { AuthGate } from '@/features/auth/AuthGate';
 
 /**
  * Client providers. LazyMotion loads only the animation features we use,
@@ -15,7 +16,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <MotionConfig reducedMotion="user">
         <ThemeManager>
           <AuthProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <ToastProvider>
+              <AuthGate>{children}</AuthGate>
+            </ToastProvider>
           </AuthProvider>
         </ThemeManager>
       </MotionConfig>

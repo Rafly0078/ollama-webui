@@ -13,6 +13,7 @@ export function Modal({
   children,
   className,
   footer,
+  dismissible = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,12 +22,14 @@ export function Modal({
   children: React.ReactNode;
   className?: string;
   footer?: React.ReactNode;
+  /** Set false for a mandatory dialog: no X button, no Escape, no backdrop click. */
+  dismissible?: boolean;
 }) {
   // Close on Escape and lock body scroll while open.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && dismissible) {
         e.stopPropagation();
         onClose();
       }
@@ -38,7 +41,7 @@ export function Modal({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open, onClose, dismissible]);
 
   return (
     <AnimatePresence>
@@ -49,7 +52,7 @@ export function Modal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={dismissible ? onClose : undefined}
           />
           <m.div
             role="dialog"
@@ -72,13 +75,15 @@ export function Modal({
                     <p className="mt-0.5 text-sm text-content-muted">{description}</p>
                   )}
                 </div>
-                <button
-                  onClick={onClose}
-                  className="btn-ghost -mr-2 -mt-1 h-8 w-8 rounded-lg"
-                  aria-label="Close dialog"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                {dismissible && (
+                  <button
+                    onClick={onClose}
+                    className="btn-ghost -mr-2 -mt-1 h-8 w-8 rounded-lg"
+                    aria-label="Close dialog"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             )}
             <div className="scrollbar-thin overflow-y-auto px-5 py-4">{children}</div>
