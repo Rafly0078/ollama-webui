@@ -39,6 +39,11 @@ const registry = new Map<ToolName, ExecutorFn>([
   ['create_json', createJson],
   ['create_xml', createXml],
   ['zip_project', zipProject],
+  // export_chat produces the same shape as create_md (Markdown text); the
+  // caller is expected to pass the rendered conversation transcript as
+  // "content". Reusing createMd keeps a single formatter instead of a
+  // near-duplicate implementation.
+  ['export_chat', createMd],
 ]);
 
 export function getExecutor(tool: ToolName): ExecutorFn | undefined {

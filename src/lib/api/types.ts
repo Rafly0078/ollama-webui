@@ -1,4 +1,5 @@
 import type { GenerationParams, Message } from '@/types';
+import { buildToolsSystemPrompt } from '../tools/prompt';
 
 /** Wire types matching an Ollama-compatible proxy. */
 
@@ -63,7 +64,10 @@ export interface ModelsResponse {
 /** Map app messages → wire messages, folding attachments into content/images. */
 export function toApiMessages(messages: Message[], systemPrompt: string): ApiChatMessage[] {
   const out: ApiChatMessage[] = [];
-  if (systemPrompt.trim()) out.push({ role: 'system', content: systemPrompt.trim() });
+  const combinedSystem = [systemPrompt.trim(), buildToolsSystemPrompt()]
+    .filter(Boolean)
+    .join('\n\n---\n\n');
+  if (combinedSystem) out.push({ role: 'system', content: combinedSystem });
 
   for (const m of messages) {
     if (m.role === 'system') continue;
