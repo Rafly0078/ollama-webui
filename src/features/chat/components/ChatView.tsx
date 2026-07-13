@@ -108,7 +108,7 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
       <ChatInput
         disabled={!conversation.model}
         generating={generating}
-        onSend={(text, atts) => void send(text, atts)}
+        onSend={(text, atts, webSearch) => void send(text, atts, webSearch)}
         onStop={stop}
         onSlashCommand={handleSlash}
         visionCapable={visionCapable}

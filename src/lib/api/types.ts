@@ -61,8 +61,17 @@ export interface ModelsResponse {
   models?: RawModel[];
 }
 
-/** Map app messages → wire messages, folding attachments into content/images. */
-export function toApiMessages(messages: Message[], systemPrompt: string): ApiChatMessage[] {
+/**
+ * Map app messages → wire messages, folding attachments into content/images.
+ * When `searchContext` is provided, it's appended to the LAST user message as
+ * grounding for a web-search-augmented turn — kept on the user turn (not a
+ * separate system message) so it sits right next to the question it answers.
+ */
+export function toApiMessages(
+  messages: Message[],
+  systemPrompt: string,
+  searchContext?: string,
+): ApiChatMessage[] {
   const out: ApiChatMessage[] = [];
   // TOOL_INSTRUCTIONS is always included — even conversations created before
   // this existed (whose stored systemPrompt predates it) still get a model
@@ -70,7 +79,10 @@ export function toApiMessages(messages: Message[], systemPrompt: string): ApiCha
   const combinedSystem = [systemPrompt.trim(), TOOL_INSTRUCTIONS].filter(Boolean).join('\n\n');
   if (combinedSystem) out.push({ role: 'system', content: combinedSystem });
 
-  for (const m of messages) {
+  const lastUserIdx = messages.map((m) => m.role).lastIndexOf('user');
+
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i]!;
     if (m.role === 'system') continue;
     if (m.error) continue;
     const images: string[] = [];
@@ -81,6 +93,10 @@ export function toApiMessages(messages: Message[], systemPrompt: string): ApiCha
       else if (att.text) {
         content += `\n\n[Attached file: ${att.name}]\n\`\`\`\n${att.text}\n\`\`\``;
       }
+    }
+
+    if (searchContext && i === lastUserIdx) {
+      content += `\n\n---\n${searchContext}`;
     }
 
     out.push({

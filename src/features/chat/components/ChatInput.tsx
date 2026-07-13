@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { ArrowUp, FileText, Loader2, Paperclip, Square, X, Command } from 'lucide-react';
+import { ArrowUp, FileText, Globe, Loader2, Paperclip, Square, X, Command } from 'lucide-react';
 import type { Attachment } from '@/types';
 import { fileToAttachment } from '@/lib/utils/files';
 import { estimateTokens } from '@/lib/utils/format';
@@ -16,7 +16,7 @@ import { DocumentEditDialog } from '@/features/documents/DocumentEditDialog';
 interface Props {
   disabled?: boolean;
   generating: boolean;
-  onSend: (text: string, attachments: Attachment[]) => void;
+  onSend: (text: string, attachments: Attachment[], webSearch: boolean) => void;
   onStop: () => void;
   onSlashCommand: (command: string) => void;
   visionCapable?: boolean;
@@ -39,6 +39,7 @@ export function ChatInput({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [webSearch, setWebSearch] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
@@ -87,7 +88,7 @@ export function ChatInput({
       const cmd = SLASH_COMMANDS.find((c) => c.command === trimmed);
       if (cmd) {
         if (cmd.template) {
-          onSend(cmd.template, []);
+          onSend(cmd.template, [], false);
         } else {
           onSlashCommand(cmd.command);
         }
@@ -97,15 +98,15 @@ export function ChatInput({
     }
 
     if (!trimmed && attachments.length === 0) return;
-    onSend(trimmed, attachments);
+    onSend(trimmed, attachments, webSearch);
     setValue('');
     setAttachments([]);
-  }, [disabled, generating, value, slashOpen, attachments, onSend, onSlashCommand]);
+  }, [disabled, generating, value, slashOpen, attachments, onSend, onSlashCommand, webSearch]);
 
   const runCommand = useCallback(
     (cmd: (typeof SLASH_COMMANDS)[number]) => {
       if (cmd.template) {
-        onSend(cmd.template, []);
+        onSend(cmd.template, [], false);
       } else {
         onSlashCommand(cmd.command);
       }
@@ -263,6 +264,22 @@ export function ChatInput({
               <FileText className="h-5 w-5" />
             </button>
           </Tooltip>
+          <Tooltip label={webSearch ? 'Web search on — model will search before answering' : 'Search the web for this message'}>
+            <button
+              onClick={() => setWebSearch((v) => !v)}
+              disabled={disabled}
+              aria-label="Toggle web search"
+              aria-pressed={webSearch}
+              className={cn(
+                'focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40',
+                webSearch
+                  ? 'bg-accent text-accent-fg'
+                  : 'text-content-muted hover:bg-accent/20 hover:text-content',
+              )}
+            >
+              <Globe className="h-5 w-5" />
+            </button>
+          </Tooltip>
           <input
             ref={fileInputRef}
             type="file"
@@ -314,8 +331,13 @@ export function ChatInput({
       </div>
 
       <div className="mt-2 flex items-center justify-between px-2 text-[0.7rem] text-content-subtle">
-        <span>
-          {visionCapable ? 'Vision model — images supported' : 'Text model'}
+        <span className="flex items-center gap-1.5">
+          {webSearch && (
+            <span className="inline-flex items-center gap-1 font-medium text-accent">
+              <Globe className="h-3 w-3" /> Web search
+            </span>
+          )}
+          <span>{visionCapable ? 'Vision model — images supported' : 'Text model'}</span>
         </span>
         {showTokenCounter && value.trim() && <span className="tabular-nums">~{tokenCount} tokens</span>}
       </div>

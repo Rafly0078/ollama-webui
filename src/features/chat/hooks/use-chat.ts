@@ -9,6 +9,9 @@ import { toApiMessages, toApiOptions, type ChatStreamChunk } from '@/lib/api/typ
 import { uid } from '@/lib/utils/id';
 import { detectArtifacts } from '@/lib/tools/detect';
 import type { Artifact } from '@/lib/tools/types';
+import { searchWeb } from '@/lib/search/client';
+import { formatSearchContext, toSources } from '@/lib/search/format';
+import { useToast } from '@/components/ui/toast';
 
 /**
  * The controller for the in-flight generation. Kept at module scope (only one
@@ -48,6 +51,7 @@ function metricsFromChunk(final: ChatStreamChunk, startedAt: number) {
 export function useChat(conversationId: string | null) {
   const store = useChatStore;
   const executingRef = useRef<Set<string>>(new Set());
+  const { toast } = useToast();
 
   /** Detect artifact directives in a completed message and execute them. */
   const processArtifacts = useCallback(
@@ -96,7 +100,11 @@ export function useChat(conversationId: string | null) {
 
   /** Core streaming routine: streams into an existing assistant message id. */
   const runStream = useCallback(
-    async (convoId: string, assistantId: string, opts?: { append?: boolean }) => {
+    async (
+      convoId: string,
+      assistantId: string,
+      opts?: { append?: boolean; searchContext?: string },
+    ) => {
       const s = store.getState();
       const convo = s.conversations.find((c) => c.id === convoId);
       if (!convo) return;
@@ -124,7 +132,7 @@ export function useChat(conversationId: string | null) {
         await streamChat(
           {
             model: convo.model,
-            messages: toApiMessages(history, convo.systemPrompt),
+            messages: toApiMessages(history, convo.systemPrompt, opts?.searchContext),
             options: toApiOptions(convo.params),
           },
           {
@@ -168,7 +176,7 @@ export function useChat(conversationId: string | null) {
   );
 
   const send = useCallback(
-    async (text: string, attachments: Attachment[] = []) => {
+    async (text: string, attachments: Attachment[] = [], webSearch = false) => {
       if (!conversationId) return;
       const trimmed = text.trim();
       if (!trimmed && attachments.length === 0) return;
@@ -202,9 +210,31 @@ export function useChat(conversationId: string | null) {
       s.addMessage(conversationId, assistantMsg);
       s.pushRecentModel(convo.model);
 
-      await runStream(conversationId, assistantMsg.id);
+      // Optional web search: fetch grounding context before streaming. A search
+      // failure is non-fatal — we toast and let the model answer without it
+      // rather than dropping the user's turn entirely.
+      let searchContext: string | undefined;
+      if (webSearch && trimmed) {
+        store.getState().updateMessage(conversationId, assistantMsg.id, {
+          metadata: { ...assistantMsg.metadata, searching: true },
+        });
+        try {
+          const res = await searchWeb(trimmed);
+          searchContext = formatSearchContext(res);
+          store.getState().updateMessage(conversationId, assistantMsg.id, {
+            metadata: { searching: false, sources: toSources(res) },
+          });
+        } catch (err) {
+          toast(err instanceof Error ? err.message : 'Web search failed', 'error');
+          store.getState().updateMessage(conversationId, assistantMsg.id, {
+            metadata: { searching: false },
+          });
+        }
+      }
+
+      await runStream(conversationId, assistantMsg.id, { searchContext });
     },
-    [conversationId, runStream, store],
+    [conversationId, runStream, store, toast],
   );
 
   const regenerate = useCallback(

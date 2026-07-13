@@ -12,9 +12,11 @@ import {
   User,
   Sparkles,
   CornerDownRight,
+  Globe,
   X,
 } from 'lucide-react';
 import type { Message } from '@/types';
+import type { Source } from '@/lib/search/types';
 import { Markdown } from '@/components/markdown/Markdown';
 import { Tooltip } from '@/components/ui/tooltip';
 import { TypingIndicator } from './TypingIndicator';
@@ -70,6 +72,12 @@ export const MessageBubble = memo(function MessageBubble({
 
   const showActions = !message.streaming && !editing;
   const canContinue = !isUser && isLast && !generating && !message.error && message.content.length > 0;
+
+  // Web-search status/citations ride on metadata (set by useChat), so no new
+  // Message field is needed. `searching` is true only while the query is in
+  // flight; `sources` persists after it resolves.
+  const searching = message.metadata?.searching === true;
+  const sources = (message.metadata?.sources as Source[] | undefined) ?? [];
 
   // Only the newest message plays the entrance animation. Animating every
   // bubble on mount means a 50-message conversation fires 50 simultaneous
@@ -139,6 +147,15 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
+        {/* Web-search status: shown while grounding results are being fetched,
+            before any content streams in. */}
+        {!isUser && searching && (
+          <div className="mb-2 inline-flex items-center gap-2 rounded-md border border-border bg-border/5 px-2.5 py-1.5 text-xs text-content-muted">
+            <Globe className="h-3.5 w-3.5 animate-pulse text-accent" />
+            Searching the web…
+          </div>
+        )}
+
         {/* Content */}
         {editing ? (
           <div className="space-y-2">
@@ -201,6 +218,32 @@ export const MessageBubble = memo(function MessageBubble({
             {message.metrics.responseTimeMs != null && (
               <MetricPill label="" value={formatDuration(message.metrics.responseTimeMs)} />
             )}
+          </div>
+        )}
+
+        {/* Sources: citations from a web-search-augmented turn. Numbered to
+            match the inline [1], [2] the model is prompted to use. */}
+        {!isUser && !message.streaming && sources.length > 0 && (
+          <div className="mt-3 border-t border-border/60 pt-2">
+            <div className="mb-1.5 flex items-center gap-1.5 text-[0.68rem] font-bold uppercase tracking-[0.08em] text-content-subtle">
+              <Globe className="h-3 w-3" /> Sources
+            </div>
+            <ol className="space-y-1">
+              {sources.map((src, i) => (
+                <li key={src.url + i} className="flex gap-1.5 text-xs">
+                  <span className="tabular-nums text-content-subtle">[{i + 1}]</span>
+                  <a
+                    href={src.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="focus-ring truncate rounded text-content-muted underline decoration-border underline-offset-2 hover:text-accent"
+                    title={src.url}
+                  >
+                    {src.title || src.url}
+                  </a>
+                </li>
+              ))}
+            </ol>
           </div>
         )}
 
