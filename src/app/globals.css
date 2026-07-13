@@ -406,23 +406,63 @@ h4 {
   margin: 0;
   background: transparent;
 }
-/* Tables — solid brutalist grid with a hard shadow. */
-.prose-chat table {
-  @apply my-4 w-full border-collapse text-sm;
-  display: block;
-  overflow-x: auto;
+
+/* ---------------------------------------------------------------------------
+   CODE BLOCKS — brutalist card frame around a fixed-dark canvas. Border/shadow
+   follow the app theme; the inner surface stays dark in both themes since the
+   highlight.js "github-dark" token palette needs a dark backdrop to read.
+--------------------------------------------------------------------------- */
+.code-block {
+  @apply my-4 overflow-hidden rounded-xl;
+  background-color: #0d1117;
   border: 2px solid rgb(var(--border) / var(--border-strong));
-  border-radius: var(--radius-md);
   box-shadow: 3px 3px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
+}
+.code-block-header {
+  @apply flex items-center justify-between px-3.5 py-2;
+  background-color: rgb(255 255 255 / 0.04);
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+/* ---------------------------------------------------------------------------
+   TABLES — same brutalist frame language as code blocks (thick outer border +
+   hard offset shadow), but a soft hairline grid inside instead of a thick
+   border on every cell — a strong 1–2px line around each cell reads busy at
+   table sizes. Header keeps a stronger underline so it stays the clear anchor.
+--------------------------------------------------------------------------- */
+.prose-chat .table-wrap {
+  @apply my-4 w-full overflow-x-auto rounded-xl;
+  border: 2px solid rgb(var(--border) / var(--border-strong));
+  box-shadow: 3px 3px 0 0 rgb(var(--shadow) / var(--shadow-alpha));
+}
+.prose-chat table {
+  @apply w-full border-collapse text-sm;
+  min-width: max-content;
 }
 .prose-chat th,
 .prose-chat td {
-  border: 1px solid rgb(var(--border) / var(--border-strong));
-  @apply px-3 py-2 text-left;
+  @apply px-3.5 py-2.5 text-left align-top;
+  border-bottom: 1px solid rgb(var(--border) / var(--border-alpha));
+  border-right: 1px solid rgb(var(--border) / var(--border-alpha));
+}
+.prose-chat th:last-child,
+.prose-chat td:last-child {
+  border-right: 0;
+}
+.prose-chat tbody tr:last-child td {
+  border-bottom: 0;
 }
 .prose-chat th {
+  @apply text-xs font-bold uppercase tracking-wide;
   background-color: rgb(var(--border) / 0.06);
-  @apply font-bold;
+  border-bottom: 2px solid rgb(var(--border) / var(--border-strong));
+  color: rgb(var(--content-muted));
+}
+.prose-chat tbody tr:nth-child(even) {
+  background-color: rgb(var(--border) / 0.025);
+}
+.prose-chat tbody tr:hover {
+  background-color: rgb(var(--accent) / 0.06);
 }
 .prose-chat img {
   @apply my-3 max-w-full;

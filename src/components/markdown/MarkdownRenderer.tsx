@@ -69,6 +69,13 @@ const components: Components = {
       </a>
     );
   },
+  table({ children }) {
+    return (
+      <div className="table-wrap">
+        <table>{children}</table>
+      </div>
+    );
+  },
 };
 
 const MarkdownRenderer = memo(function MarkdownRenderer({ content }: { content: string }) {
