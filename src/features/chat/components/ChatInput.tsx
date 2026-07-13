@@ -151,7 +151,7 @@ export function ChatInput({
   const tokenCount = estimateTokens(value);
 
   return (
-    <div className="chat-container relative pb-3 sm:pb-5">
+    <div className="chat-container relative pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-5">
       {/* Slash command palette */}
       <AnimatePresence>
         {slashOpen && slashMatches.length > 0 && (

@@ -46,7 +46,7 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
         </div>
         <span className="flex-1 text-lg font-bold uppercase tracking-[-0.06em] text-content">AI Chat</span>
         {isMobile && (
-          <button onClick={onClose} className="btn-ghost h-8 w-8 rounded-lg" aria-label="Close sidebar">
+          <button onClick={onClose} className="btn-ghost h-10 w-10 rounded-lg" aria-label="Close sidebar">
             <X className="h-5 w-5" />
           </button>
         )}
@@ -125,7 +125,7 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border px-3 py-3">
+      <div className="border-t border-border px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
         <Link href="/settings" className="btn-ghost h-9 w-full justify-start">
           <Settings2 className="h-4 w-4" /> Settings
         </Link>
@@ -154,7 +154,7 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
               animate={{ x: 0 }}
               exit={{ x: -SIDEBAR_WIDTH }}
               transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-              className="popover fixed inset-y-0 left-0 z-50 w-72 border-r border-border"
+              className="popover fixed inset-y-0 left-0 z-50 w-72 max-w-[88vw] border-r border-border"
             >
               {content}
             </m.aside>

@@ -194,9 +194,11 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        {/* Action bar */}
+        {/* Action bar. Visible by default so touch users can always reach it —
+            only pointers that genuinely support hover (mouse/trackpad) get
+            the idle-hidden, hover-to-reveal treatment. */}
         {showActions && (
-          <div className="mt-2 flex items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/msg:opacity-100">
+          <div className="mt-2 flex items-center gap-1 opacity-100 transition-opacity [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-within:opacity-100 [@media(hover:hover)]:group-hover/msg:opacity-100">
             <ActionBtn label={copied ? 'Copied' : 'Copy'} onClick={copy}>
               {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
             </ActionBtn>
@@ -239,7 +241,7 @@ function ActionBtn({
       <button
         onClick={onClick}
         aria-label={label}
-        className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-content-subtle transition-colors hover:bg-border/5 hover:text-content"
+        className="focus-ring flex h-9 w-9 items-center justify-center rounded-lg text-content-subtle transition-colors hover:bg-border/5 hover:text-content active:bg-border/10"
       >
         {children}
       </button>

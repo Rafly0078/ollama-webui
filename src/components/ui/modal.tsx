@@ -63,7 +63,7 @@ export function Modal({
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 320, damping: 30 }}
             className={cn(
-              'popover relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl shadow-card sm:max-w-lg sm:rounded-3xl',
+              'popover relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl pb-[env(safe-area-inset-bottom)] shadow-card sm:max-w-lg sm:rounded-3xl sm:pb-0',
               className,
             )}
           >

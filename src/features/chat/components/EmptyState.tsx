@@ -38,8 +38,9 @@ export function EmptyState({ onPick }: { onPick: (prompt: string) => void }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.05 }}
             whileHover={{ y: -2 }}
+            whileTap={{ x: 2, y: 2 }}
             onClick={() => onPick(s.prompt)}
-            className={`glass focus-ring group min-h-32 rounded-md p-5 text-left shadow-card transition-transform hover:-translate-x-1 hover:-translate-y-1 ${PROMPT_CARD_TONES[i]}`}
+            className={`glass focus-ring group min-h-32 rounded-md p-5 text-left shadow-card transition-transform hover:-translate-x-1 hover:-translate-y-1 active:translate-x-0.5 active:translate-y-0.5 ${PROMPT_CARD_TONES[i]}`}
           >
             <p className="text-lg font-bold uppercase tracking-[-0.04em] text-content group-hover:text-accent">
               {s.title}

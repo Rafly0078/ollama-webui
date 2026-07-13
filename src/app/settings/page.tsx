@@ -401,21 +401,24 @@ function PresetManager({ presets }: { presets: PromptPreset[] }) {
       <p className="mb-2 text-sm font-medium text-content">Prompt presets</p>
       <div className="space-y-2">
         {presets.map((p) => (
-          <div key={p.id} className="flex items-start gap-2 rounded-xl border border-border bg-border/[0.02] p-2">
+          <div
+            key={p.id}
+            className="flex flex-col gap-2 rounded-xl border border-border bg-border/[0.02] p-2 sm:flex-row sm:items-start"
+          >
             <input
               value={p.name}
               onChange={(e) => updatePreset(p.id, { name: e.target.value })}
-              className="input h-8 w-40 shrink-0 text-sm"
+              className="input h-9 w-full text-sm sm:h-8 sm:w-40 sm:shrink-0"
             />
             <textarea
               value={p.content}
               onChange={(e) => updatePreset(p.id, { content: e.target.value })}
               rows={2}
-              className="input resize-none text-xs"
+              className="input min-w-0 flex-1 resize-none text-xs"
             />
             <button
               onClick={() => removePreset(p.id)}
-              className="btn-ghost h-8 w-8 shrink-0 rounded-lg text-content-subtle hover:text-error"
+              className="btn-ghost h-9 w-9 shrink-0 self-end rounded-lg text-content-subtle hover:text-error sm:h-8 sm:w-8 sm:self-start"
               aria-label={`Delete ${p.name}`}
             >
               <Trash2 className="h-4 w-4" />
@@ -423,18 +426,18 @@ function PresetManager({ presets }: { presets: PromptPreset[] }) {
           </div>
         ))}
       </div>
-      <div className="mt-2 flex items-start gap-2">
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Preset name"
-          className="input h-8 w-40 shrink-0 text-sm"
+          className="input h-9 w-full text-sm sm:h-8 sm:w-40 sm:shrink-0"
         />
         <input
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Prompt content…"
-          className="input h-8 text-sm"
+          className="input h-9 min-w-0 flex-1 text-sm sm:h-8"
         />
         <button
           onClick={() => {
@@ -443,7 +446,7 @@ function PresetManager({ presets }: { presets: PromptPreset[] }) {
             setName('');
             setContent('');
           }}
-          className="btn-surface h-8 w-8 shrink-0 rounded-lg"
+          className="btn-surface h-9 w-9 shrink-0 self-end rounded-lg sm:h-8 sm:w-8 sm:self-start"
           aria-label="Add preset"
         >
           <Plus className="h-4 w-4" />

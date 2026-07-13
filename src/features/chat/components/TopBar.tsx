@@ -81,13 +81,13 @@ export function TopBar({ conversation, onToggleSidebar, onOpenParams, onOpenSyst
         <ContextMeter conversation={conversation} />
         <ConnectionStatus />
 
-        <Tooltip label="System prompt" side="bottom">
+        <Tooltip label="System prompt" side="bottom" className="hidden sm:inline-flex">
           <button onClick={onOpenSystem} className="btn-ghost h-9 w-9 rounded-xl" aria-label="Edit system prompt">
             <Terminal className="h-[1.15rem] w-[1.15rem]" />
           </button>
         </Tooltip>
 
-        <Tooltip label="Parameters" side="bottom">
+        <Tooltip label="Parameters" side="bottom" className="hidden sm:inline-flex">
           <button onClick={onOpenParams} className="btn-ghost h-9 w-9 rounded-xl" aria-label="Generation parameters">
             <Sliders className="h-[1.15rem] w-[1.15rem]" />
           </button>
@@ -119,6 +119,14 @@ export function TopBar({ conversation, onToggleSidebar, onOpenParams, onOpenSyst
                   label="Edit system prompt"
                   onClick={() => {
                     onOpenSystem();
+                    setMenuOpen(false);
+                  }}
+                />
+                <MenuItem
+                  icon={Sliders}
+                  label="Generation parameters"
+                  onClick={() => {
+                    onOpenParams();
                     setMenuOpen(false);
                   }}
                 />

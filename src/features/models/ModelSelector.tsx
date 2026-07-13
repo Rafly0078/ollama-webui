@@ -62,7 +62,7 @@ export function ModelSelector({ value, onChange }: Props) {
             exit={{ opacity: 0, y: -8, scale: 0.98 }}
             transition={{ duration: 0.15 }}
             role="listbox"
-            className="popover scrollbar-thin absolute left-0 top-full z-50 mt-2 max-h-[70vh] w-80 overflow-y-auto rounded-2xl p-1.5 shadow-card"
+            className="popover scrollbar-thin absolute left-0 top-full z-50 mt-2 max-h-[70vh] w-[min(20rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl p-1.5 shadow-card"
           >
             <div className="flex items-center justify-between px-2 py-1.5">
               <span className="text-xs font-medium text-content-muted">
