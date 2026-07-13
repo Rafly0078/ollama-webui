@@ -5,7 +5,8 @@
 
 import type { Conversation, GenerationParams, Message, Role } from '@/types';
 import { DEFAULT_PARAMS } from '@/lib/store/defaults';
-import type { ConversationRow, MessageRow } from '@/lib/supabase/types';
+import type { ArtifactKind, Artifact } from '@/lib/tools/types';
+import type { ArtifactRow, ConversationRow, MessageRow } from '@/lib/supabase/types';
 
 const isoToMs = (iso: string): number => new Date(iso).getTime();
 const msToIso = (ms: number): string => new Date(ms).toISOString();
@@ -34,6 +35,30 @@ export function rowToMessage(row: MessageRow): Message {
     model: row.model ?? undefined,
     metrics: row.metrics ?? undefined,
     error: row.error ?? undefined,
+  };
+}
+
+/**
+ * Map a persisted artifact row back to the domain Artifact shape used by the
+ * UI. We deliberately do NOT set `url` here — signed URLs expire, so the URL is
+ * minted fresh on display via /api/artifacts/refresh (see ArtifactPanel), which
+ * only needs `bucket` + `storagePath`.
+ */
+export function rowToArtifact(row: ArtifactRow): Artifact {
+  return {
+    id: row.id,
+    conversationId: row.conversation_id ?? undefined,
+    messageId: row.message_id ?? undefined,
+    kind: row.kind as ArtifactKind,
+    name: row.name,
+    mimeType: row.mime_type ?? 'application/octet-stream',
+    size: row.size_bytes,
+    version: row.version,
+    createdAt: isoToMs(row.created_at),
+    bucket: row.bucket,
+    storagePath: row.storage_path,
+    ephemeral: false,
+    metadata: (row.metadata as Record<string, unknown>) ?? undefined,
   };
 }
 
