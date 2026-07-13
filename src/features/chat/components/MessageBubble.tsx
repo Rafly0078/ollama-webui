@@ -71,11 +71,21 @@ export const MessageBubble = memo(function MessageBubble({
   const showActions = !message.streaming && !editing;
   const canContinue = !isUser && isLast && !generating && !message.error && message.content.length > 0;
 
+  // Only the newest message plays the entrance animation. Animating every
+  // bubble on mount means a 50-message conversation fires 50 simultaneous
+  // transitions on load/convo-switch — visible jank for zero benefit, since
+  // settled history should just be there. Older bubbles render static.
+  const motionProps = isLast
+    ? {
+        initial: { opacity: 0, y: 6 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.2, ease: 'easeOut' as const },
+      }
+    : {};
+
   return (
     <m.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      {...motionProps}
       className={cn(
         'group/msg chat-container flex gap-3 py-6 sm:gap-4',
         // Native windowing: skip layout/paint for offscreen, settled messages.

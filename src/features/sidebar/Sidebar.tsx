@@ -40,9 +40,8 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-4">
         <div className="accent-gradient flex h-10 w-10 items-center justify-center rounded-md border-[3px] border-border shadow-card">
-          <span>
-            <img src="/noun-atom-8300355 (1).png" alt="Logo" className="h-6 w-6" />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/noun-atom-8300355 (1).png" alt="" width={24} height={24} className="h-6 w-6" />
         </div>
         <span className="flex-1 text-lg font-bold uppercase tracking-[-0.06em] text-content">AI Chat</span>
         {isMobile && (

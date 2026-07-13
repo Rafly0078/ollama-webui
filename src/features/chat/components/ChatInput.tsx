@@ -102,15 +102,28 @@ export function ChatInput({
     setAttachments([]);
   }, [disabled, generating, value, slashOpen, attachments, onSend, onSlashCommand]);
 
+  const runCommand = useCallback(
+    (cmd: (typeof SLASH_COMMANDS)[number]) => {
+      if (cmd.template) {
+        onSend(cmd.template, []);
+      } else {
+        onSlashCommand(cmd.command);
+      }
+      setValue('');
+    },
+    [onSend, onSlashCommand],
+  );
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Ctrl/Cmd+Enter always sends. Enter sends when sendOnEnter is on.
     if (e.key === 'Enter') {
       const wantSend = (e.metaKey || e.ctrlKey) || (sendOnEnter && !e.shiftKey);
       if (wantSend) {
         e.preventDefault();
-        if (slashMatches.length === 1 && slashMatches[0]) {
-          setValue(slashMatches[0].command);
-          requestAnimationFrame(submit);
+        // Autocomplete a lone slash match directly — don't setValue then submit
+        // on the next frame, which would read the stale (pre-setValue) closure.
+        if (slashOpen && slashMatches.length === 1 && slashMatches[0]) {
+          runCommand(slashMatches[0]);
         } else {
           submit();
         }
@@ -164,15 +177,7 @@ export function ChatInput({
             {slashMatches.map((c) => (
               <button
                 key={c.command}
-                onClick={() => {
-                  if (c.template) {
-                    onSend(c.template, []);
-                    setValue('');
-                  } else {
-                    onSlashCommand(c.command);
-                    setValue('');
-                  }
-                }}
+                onClick={() => runCommand(c)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-border/5"
               >
                 <Command className="h-4 w-4 text-accent" />

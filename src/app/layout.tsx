@@ -30,11 +30,26 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fff9e8' },
+    { media: '(prefers-color-scheme: dark)', color: '#1f1d1b' },
+  ],
 };
+
+/**
+ * Runs before first paint to set the theme class from persisted settings,
+ * eliminating the light-theme flash on reload for users on dark/system. Mirrors
+ * ThemeManager's resolution so the two never disagree. Kept dependency-free and
+ * inlined; any throw is swallowed so a corrupt store can't block rendering.
+ */
+const NO_FLASH_THEME = `(function(){try{var t='light';var raw=localStorage.getItem('ollama-webui:settings');if(raw){var s=JSON.parse(raw);t=(s&&s.state&&s.state.theme)||'light';}var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.classList.toggle('light',!d);}catch(e){}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${jetbrains.variable} light`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME }} />
+      </head>
       <body className="min-h-[100dvh] antialiased">
         <Providers>{children}</Providers>
       </body>

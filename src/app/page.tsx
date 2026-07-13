@@ -46,12 +46,6 @@ export default function HomePage() {
     [conversations, activeId],
   );
 
-  // Keep activeId valid after hydration.
-  useEffect(() => {
-    if (!hydrated) return;
-    if (!activeId && conversations[0]) setActive(conversations[0].id);
-  }, [hydrated, activeId, conversations, setActive]);
-
   const newChat = useCallback(() => {
     createConversation({
       model: settings.defaultModel || undefined,
@@ -60,6 +54,20 @@ export default function HomePage() {
     });
     if (isMobile) setSidebarOpen(false);
   }, [createConversation, settings, isMobile]);
+
+  // Keep activeId valid after hydration. If there are no conversations at all,
+  // create one so the fully-wired ChatView (whose EmptyState actually sends the
+  // picked prompt) renders — the bare page-level EmptyState below can only start
+  // a blank chat and would silently drop the prompt text the user clicked.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!apiConfigured()) return;
+    if (conversations.length === 0) {
+      newChat();
+      return;
+    }
+    if (!activeId && conversations[0]) setActive(conversations[0].id);
+  }, [hydrated, activeId, conversations, setActive, newChat]);
 
   const focusSearch = useCallback(() => {
     setSidebarOpen(true);
