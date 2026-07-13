@@ -35,6 +35,51 @@ function readAsText(file: File): Promise<string> {
   });
 }
 
+// Most vision models don't benefit from anything past ~1568px on the long
+// edge, and full-resolution phone photos (4000px+, several MB) are the most
+// common reason an image request silently fails against a proxied/serverless
+// backend with a request-size cap. Downscale + re-encode as JPEG before send.
+const MAX_IMAGE_DIMENSION = 1568;
+const IMAGE_JPEG_QUALITY = 0.88;
+
+/**
+ * Downscale an image data URL if it's larger than MAX_IMAGE_DIMENSION on its
+ * long edge, re-encoding as JPEG to keep payload size reasonable. Falls back
+ * to the original data URL untouched if anything about this fails (canvas
+ * unavailable, decode error, etc.) — resizing is a best-effort optimization,
+ * never a hard requirement.
+ */
+function downscaleImageDataUrl(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.onload = () => {
+        const { width, height } = img;
+        const longEdge = Math.max(width, height);
+        if (longEdge <= MAX_IMAGE_DIMENSION) {
+          resolve(dataUrl);
+          return;
+        }
+        const scale = MAX_IMAGE_DIMENSION / longEdge;
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    } catch {
+      resolve(dataUrl);
+    }
+  });
+}
+
 /**
  * Convert a File into an Attachment. Images become base64 for vision models,
  * text/pdf become inlined text. PDF text extraction is best-effort: we lazily
@@ -51,7 +96,8 @@ export async function fileToAttachment(file: File): Promise<Attachment> {
 
   if (isImage(file)) {
     if (file.size > MAX_IMAGE_BYTES) throw new Error(`Image "${file.name}" exceeds 12MB.`);
-    const dataUrl = await readAsDataUrl(file);
+    const originalDataUrl = await readAsDataUrl(file);
+    const dataUrl = await downscaleImageDataUrl(originalDataUrl);
     return {
       ...base,
       previewUrl: dataUrl,

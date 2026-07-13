@@ -1,6 +1,6 @@
 import type { ModelInfo } from '@/types';
 import { ApiError, DEFAULT_TIMEOUT_MS, apiUrl } from './config';
-import { parseChatStream } from './stream';
+import { parseChatStream, StreamParseError } from './stream';
 import type {
   ChatRequest,
   ChatStreamChunk,
@@ -151,16 +151,42 @@ export async function streamChat(
   if (!res.body) throw new ApiError('The server did not return a stream body.', { kind: 'parse' });
 
   let final: ChatStreamChunk = {};
+  let receivedAnyContent = false;
   try {
     for await (const chunk of parseChatStream(res.body, signal)) {
-      if (chunk.error) throw new ApiError(chunk.error, { kind: 'http', status: res.status });
+      if (chunk.error) {
+        const msg = typeof chunk.error === 'string' ? chunk.error : JSON.stringify(chunk.error);
+        throw new ApiError(msg, { kind: 'http', status: res.status });
+      }
       const delta = chunk.message?.content ?? chunk.response ?? '';
-      if (delta) handlers.onDelta(delta);
+      if (delta) {
+        receivedAnyContent = true;
+        handlers.onDelta(delta);
+      }
       if (chunk.done) final = { ...final, ...chunk };
     }
   } catch (err) {
+    if (err instanceof StreamParseError) {
+      throw new ApiError(
+        `The server sent a response the app couldn't understand. This often happens when the selected model or endpoint doesn't actually support the request that was sent (for example, an image attachment on a model without vision support). Details: ${err.message}`,
+        { kind: 'parse' },
+      );
+    }
     throw normalize(err);
   }
+
+  // The connection closed cleanly, but the model never actually produced any
+  // text. Ollama-compatible endpoints do this when they silently reject part
+  // of the request (most commonly: an image was attached but the model/
+  // backend doesn't support vision input). Rather than leaving the UI on a
+  // permanently blank assistant bubble, say so.
+  if (!receivedAnyContent && !signal?.aborted) {
+    throw new ApiError(
+      'The model returned an empty response. If you attached an image, this usually means the selected model does not support image input — try a vision-capable model, or resend as text only.',
+      { kind: 'parse' },
+    );
+  }
+
   handlers.onDone(final);
 }
 
