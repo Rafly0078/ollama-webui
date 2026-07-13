@@ -40,9 +40,9 @@ const createTxt: ExecutorFn = async (req) => {
           lines.push('');
           break;
         case 'table':
-          lines.push(b.header.join(' | '));
+          lines.push(b.header.map((h) => stripInline(h)).join(' | '));
           lines.push(b.header.map(() => '---').join(' | '));
-          b.rows.forEach((row) => lines.push(row.join(' | ')));
+          b.rows.forEach((row) => lines.push(row.map((c) => stripInline(c)).join(' | ')));
           lines.push('');
           break;
       }

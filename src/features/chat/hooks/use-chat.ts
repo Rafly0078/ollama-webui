@@ -117,6 +117,10 @@ export function useChat(conversationId: string | null) {
       }
 
       const controller = new AbortController();
+      // Abort any generation still in flight before taking over the single
+      // slot — otherwise a stale controller keeps writing to the store and can
+      // no longer be stopped (stopActiveGeneration only holds the latest one).
+      activeController?.abort();
       activeController = controller;
       s.setGenerating(convoId);
 
@@ -128,11 +132,16 @@ export function useChat(conversationId: string | null) {
         : convo.messages.slice(0, idx);
 
       const startedAt = Date.now();
+      // Reuse the grounding captured on the first turn so regenerate/continue
+      // don't silently answer without the web context the original answer had.
+      const assistantMsg = convo.messages[idx];
+      const searchContext =
+        opts?.searchContext ?? (assistantMsg?.metadata?.searchContext as string | undefined);
       try {
         await streamChat(
           {
             model: convo.model,
-            messages: toApiMessages(history, convo.systemPrompt, opts?.searchContext),
+            messages: toApiMessages(history, convo.systemPrompt, searchContext),
             options: toApiOptions(convo.params),
           },
           {
@@ -194,9 +203,11 @@ export function useChat(conversationId: string | null) {
       };
       s.addMessage(conversationId, userMsg);
 
-      // Auto-title on first user turn.
+      // Auto-title on first user turn. Fall back to the first attachment's name
+      // when the turn is attachment-only, so it doesn't stay "New chat" forever.
       if (convo.title === 'New chat' && convo.messages.length === 0) {
-        s.renameConversation(conversationId, deriveTitle(trimmed));
+        const seed = trimmed || attachments[0]?.name || '';
+        s.renameConversation(conversationId, deriveTitle(seed));
       }
 
       const assistantMsg: Message = {
@@ -208,7 +219,7 @@ export function useChat(conversationId: string | null) {
         streaming: true,
       };
       s.addMessage(conversationId, assistantMsg);
-      s.pushRecentModel(convo.model);
+      if (convo.model) s.pushRecentModel(convo.model);
 
       // Optional web search: fetch grounding context before streaming. A search
       // failure is non-fatal — we toast and let the model answer without it
@@ -222,7 +233,8 @@ export function useChat(conversationId: string | null) {
           const res = await searchWeb(trimmed);
           searchContext = formatSearchContext(res);
           store.getState().updateMessage(conversationId, assistantMsg.id, {
-            metadata: { searching: false, sources: toSources(res) },
+            // Persist the grounding so regenerate/continue can reuse it.
+            metadata: { searching: false, sources: toSources(res), searchContext },
           });
         } catch (err) {
           toast(err instanceof Error ? err.message : 'Web search failed', 'error');

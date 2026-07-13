@@ -4,7 +4,13 @@ import 'server-only';
  * Minimal Markdown block parser for document generation. Not a full CommonMark
  * implementation — it covers the structures the generators render: headings,
  * paragraphs, bullet/numbered lists, blockquotes, fenced code, horizontal
- * rules, and tables. Inline emphasis markers are stripped for plain rendering.
+ * rules, and tables.
+ *
+ * Blocks store the RAW inline text (emphasis markers intact). Consumers pick
+ * how to render it: rich targets (DOCX, HTML, PDF) call `parseInline` to get
+ * styled spans; plain targets (TXT) call `stripInline` to flatten it. Keeping
+ * the markers in the block instead of pre-stripping them is what lets bold,
+ * italic, inline code and links survive into the generated file.
  */
 
 export type Block =
@@ -14,19 +20,134 @@ export type Block =
   | { type: 'quote'; text: string }
   | { type: 'code'; lang?: string; text: string }
   | { type: 'hr' }
-  | { type: 'table'; header: string[]; rows: string[][] };
+  | { type: 'table'; header: string[]; rows: string[][]; align?: Array<'left' | 'center' | 'right'> };
+
+/** A run of inline text carrying its accumulated formatting. */
+export interface Span {
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  code?: boolean;
+  strike?: boolean;
+  /** Destination URL when the run is (part of) a link. */
+  href?: string;
+}
 
 /** Strip common inline Markdown so plain renderers show clean text. */
 export function stripInline(s: string): string {
-  return s
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/__(.+?)__/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/_(.+?)_/g, '$1')
-    .replace(/`(.+?)`/g, '$1')
-    .replace(/~~(.+?)~~/g, '$1')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '$1 ($2)')
+  return parseInline(s)
+    .map((sp) => sp.text)
+    .join('')
     .trim();
+}
+
+type Style = Omit<Span, 'text'>;
+
+interface Token {
+  index: number;
+  length: number;
+  kind: 'code' | 'link' | 'bold' | 'italic' | 'strike';
+  inner: string;
+  href?: string;
+}
+
+// Ordered by precedence: code and links bind tightest (their contents are not
+// re-parsed for emphasis the way bold/italic are), then bold before italic so
+// `**x**` isn't mis-read as italic `*` + `*x*`.
+const INLINE_PATTERNS: Array<{ kind: Token['kind']; re: RegExp; underscore?: boolean }> = [
+  { kind: 'code', re: /`([^`]+)`/ },
+  { kind: 'link', re: /\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/ },
+  { kind: 'bold', re: /\*\*(\S(?:.*?\S)?)\*\*/ },
+  { kind: 'bold', re: /__(\S(?:.*?\S)?)__/, underscore: true },
+  { kind: 'strike', re: /~~(\S(?:.*?\S)?)~~/ },
+  { kind: 'italic', re: /\*(\S(?:.*?\S)?)\*/ },
+  { kind: 'italic', re: /_(\S(?:.*?\S)?)_/, underscore: true },
+];
+
+const WORD = /[A-Za-z0-9]/;
+
+/** Find the earliest inline construct in `s`, or null if it is all plain text. */
+function nextToken(s: string): Token | null {
+  let best: Token | null = null;
+  for (const { kind, re, underscore } of INLINE_PATTERNS) {
+    const m = re.exec(s);
+    if (!m || m.index === undefined) continue;
+    // Underscore emphasis inside a word (file_name, __dunder__ identifiers)
+    // is almost always not emphasis — require a non-word boundary on both
+    // outer sides before honoring it.
+    if (underscore) {
+      const before = s[m.index - 1];
+      const after = s[m.index + m[0].length];
+      if ((before && WORD.test(before)) || (after && WORD.test(after))) continue;
+    }
+    if (best === null || m.index < best.index) {
+      best = {
+        index: m.index,
+        length: m[0].length,
+        kind,
+        inner: kind === 'link' ? (m[1] ?? '') : (m[1] ?? ''),
+        href: kind === 'link' ? m[2] : undefined,
+      };
+      if (m.index === 0) break; // can't beat index 0
+    }
+  }
+  return best;
+}
+
+function emit(out: Span[], text: string, style: Style): void {
+  if (!text) return;
+  const last = out[out.length - 1];
+  // Coalesce adjacent runs with identical styling to keep run counts low.
+  if (
+    last &&
+    !!last.bold === !!style.bold &&
+    !!last.italic === !!style.italic &&
+    !!last.code === !!style.code &&
+    !!last.strike === !!style.strike &&
+    last.href === style.href
+  ) {
+    last.text += text;
+    return;
+  }
+  out.push({ text, ...style });
+}
+
+function walk(input: string, style: Style, out: Span[]): void {
+  let rest = input;
+  while (rest.length > 0) {
+    const tok = nextToken(rest);
+    if (!tok) {
+      emit(out, rest, style);
+      return;
+    }
+    if (tok.index > 0) emit(out, rest.slice(0, tok.index), style);
+    switch (tok.kind) {
+      case 'code':
+        // Code spans are literal — no further inline parsing inside them.
+        emit(out, tok.inner, { ...style, code: true });
+        break;
+      case 'link':
+        walk(tok.inner, { ...style, href: tok.href }, out);
+        break;
+      case 'bold':
+        walk(tok.inner, { ...style, bold: true }, out);
+        break;
+      case 'italic':
+        walk(tok.inner, { ...style, italic: true }, out);
+        break;
+      case 'strike':
+        walk(tok.inner, { ...style, strike: true }, out);
+        break;
+    }
+    rest = rest.slice(tok.index + tok.length);
+  }
+}
+
+/** Parse a line of inline Markdown into styled runs. */
+export function parseInline(input: string): Span[] {
+  const out: Span[] = [];
+  walk(input ?? '', {}, out);
+  return out;
 }
 
 function splitTableRow(line: string): string[] {
@@ -34,7 +155,18 @@ function splitTableRow(line: string): string[] {
     .replace(/^\|/, '')
     .replace(/\|$/, '')
     .split('|')
-    .map((c) => stripInline(c.trim()));
+    .map((c) => c.trim());
+}
+
+/** Read a `|:---|:--:|---:|` separator row into per-column alignment. */
+function parseAlignRow(line: string): Array<'left' | 'center' | 'right'> {
+  return splitTableRow(line).map((c) => {
+    const left = c.startsWith(':');
+    const right = c.endsWith(':');
+    if (left && right) return 'center';
+    if (right) return 'right';
+    return 'left';
+  });
 }
 
 export function parseMarkdown(md: string): Block[] {
@@ -79,7 +211,7 @@ export function parseMarkdown(md: string): Block[] {
       blocks.push({
         type: 'heading',
         level: heading[1]!.length,
-        text: stripInline(heading[2]!),
+        text: heading[2]!.replace(/\s+#+\s*$/, '').trim(),
       });
       i++;
       continue;
@@ -88,15 +220,16 @@ export function parseMarkdown(md: string): Block[] {
     // Table (header row followed by a separator row of dashes)
     if (line.includes('|') && /^\s*\|?.*\|.*$/.test(line)) {
       const sep = lines[i + 1] ?? '';
-      if (/^\s*\|?[\s:-]*-[\s:|-]*$/.test(sep) && sep.includes('-')) {
+      if (/^\s*\|?[\s:|-]*-[\s:|-]*$/.test(sep) && sep.includes('-')) {
         const header = splitTableRow(line);
+        const align = parseAlignRow(sep);
         i += 2;
         const rows: string[][] = [];
         while (i < lines.length && (lines[i] ?? '').includes('|') && (lines[i] ?? '').trim()) {
           rows.push(splitTableRow(lines[i] ?? ''));
           i++;
         }
-        blocks.push({ type: 'table', header, rows });
+        blocks.push({ type: 'table', header, rows, align });
         continue;
       }
     }
@@ -105,7 +238,7 @@ export function parseMarkdown(md: string): Block[] {
     if (/^>\s?/.test(line)) {
       const buf: string[] = [];
       while (i < lines.length && /^>\s?/.test(lines[i] ?? '')) {
-        buf.push(stripInline((lines[i] ?? '').replace(/^>\s?/, '')));
+        buf.push((lines[i] ?? '').replace(/^>\s?/, ''));
         i++;
       }
       blocks.push({ type: 'quote', text: buf.join(' ') });
@@ -114,17 +247,20 @@ export function parseMarkdown(md: string): Block[] {
 
     // Lists (bullet or ordered)
     const bullet = line.match(/^\s*[-*+]\s+(.*)$/);
-    const ordered = line.match(/^\s*\d+\.\s+(.*)$/);
+    const ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
     if (bullet || ordered) {
       const isOrdered = Boolean(ordered);
       const items: string[] = [];
       while (i < lines.length) {
         const l = lines[i] ?? '';
         const b = l.match(/^\s*[-*+]\s+(.*)$/);
-        const o = l.match(/^\s*\d+\.\s+(.*)$/);
-        if (isOrdered && o) items.push(stripInline(o[1]!));
-        else if (!isOrdered && b) items.push(stripInline(b[1]!));
-        else break;
+        const o = l.match(/^\s*\d+[.)]\s+(.*)$/);
+        if (isOrdered && o) items.push(o[1]!.trim());
+        else if (!isOrdered && b) items.push(b[1]!.trim());
+        else if (/^\s{2,}\S/.test(l) && items.length) {
+          // Continuation line of the previous item (indented wrap).
+          items[items.length - 1] += ` ${l.trim()}`;
+        } else break;
         i++;
       }
       blocks.push({ type: 'list', ordered: isOrdered, items });
@@ -141,7 +277,7 @@ export function parseMarkdown(md: string): Block[] {
         /^```/.test(line) ||
         /^>\s?/.test(line) ||
         /^\s*[-*+]\s+/.test(line) ||
-        /^\s*\d+\.\s+/.test(line) ||
+        /^\s*\d+[.)]\s+/.test(line) ||
         /^(-{3,}|\*{3,}|_{3,})\s*$/.test(line)
       ) {
         break;
@@ -149,7 +285,7 @@ export function parseMarkdown(md: string): Block[] {
       buf.push(line.trim());
       i++;
     }
-    if (buf.length) blocks.push({ type: 'paragraph', text: stripInline(buf.join(' ')) });
+    if (buf.length) blocks.push({ type: 'paragraph', text: buf.join(' ') });
   }
 
   return blocks;

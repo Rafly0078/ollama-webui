@@ -5,17 +5,59 @@ import {
   Packer,
   Paragraph,
   TextRun,
+  ExternalHyperlink,
   HeadingLevel,
+  AlignmentType,
   Table,
   TableRow,
   TableCell,
   WidthType,
   BorderStyle,
+  LevelFormat,
+  ShadingType,
   convertInchesToTwip,
+  type IRunOptions,
 } from 'docx';
 import type { ExecutorFn } from './index';
-import { parseMarkdown, type Block } from '@/lib/documents/markdown';
+import { parseInline, parseMarkdown, type Block, type Span } from '@/lib/documents/markdown';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
+
+const ACCENT = '2563EB';
+const INK = '1A1A16';
+const MUTED = '6B7280';
+const CODE_FILL = 'F3F4F6';
+const CODE_INK = '1F2937';
+const BORDER = 'D1D5DB';
+
+/** Convert a styled span into docx TextRun children (hyperlink-wrapped if needed). */
+function spanToRuns(sp: Span): (TextRun | ExternalHyperlink)[] {
+  const base: IRunOptions = {
+    text: sp.text,
+    bold: sp.bold,
+    italics: sp.italic,
+    strike: sp.strike,
+    ...(sp.code
+      ? {
+          font: 'Consolas',
+          color: CODE_INK,
+          shading: { type: ShadingType.CLEAR, fill: CODE_FILL, color: 'auto' },
+        }
+      : {}),
+  };
+  if (sp.href) {
+    return [
+      new ExternalHyperlink({
+        link: sp.href,
+        children: [new TextRun({ ...base, style: 'Hyperlink', color: ACCENT })],
+      }),
+    ];
+  }
+  return [new TextRun(base)];
+}
+
+function inlineRuns(text: string): (TextRun | ExternalHyperlink)[] {
+  return parseInline(text).flatMap(spanToRuns);
+}
 
 function blockToDocx(b: Block): (Paragraph | Table)[] {
   switch (b.type) {
@@ -24,70 +66,87 @@ function blockToDocx(b: Block): (Paragraph | Table)[] {
         b.level === 1 ? HeadingLevel.HEADING_1 :
         b.level === 2 ? HeadingLevel.HEADING_2 :
         b.level === 3 ? HeadingLevel.HEADING_3 :
-        HeadingLevel.HEADING_4;
-      return [new Paragraph({ heading: level, children: [new TextRun(b.text)] })];
+        b.level === 4 ? HeadingLevel.HEADING_4 :
+        b.level === 5 ? HeadingLevel.HEADING_5 :
+        HeadingLevel.HEADING_6;
+      return [new Paragraph({ heading: level, children: inlineRuns(b.text), spacing: { before: 240, after: 120 } })];
     }
     case 'paragraph':
-      return [new Paragraph({ children: [new TextRun(b.text)], spacing: { after: 200 } })];
+      return [new Paragraph({ children: inlineRuns(b.text), spacing: { after: 160, line: 276 } })];
     case 'list':
       return b.items.map(
         (item) =>
           new Paragraph({
-            children: [new TextRun(item)],
-            bullet: b.ordered ? { level: 0 } : { level: 0 },
-            numbering: b.ordered ? { reference: 'default-numbering', level: 0 } : undefined,
+            children: inlineRuns(item),
+            numbering: b.ordered
+              ? { reference: 'ordered-list', level: 0 }
+              : { reference: 'bullet-list', level: 0 },
+            spacing: { after: 60 },
           }),
       );
     case 'quote':
       return [
         new Paragraph({
-          children: [new TextRun({ text: b.text, italics: true, color: '666666' })],
-          indent: { left: convertInchesToTwip(0.5) },
-          spacing: { after: 200 },
+          children: parseInline(b.text).flatMap((s) => spanToRuns({ ...s, italic: true })),
+          indent: { left: convertInchesToTwip(0.4) },
+          border: { left: { style: BorderStyle.SINGLE, size: 18, color: BORDER, space: 12 } },
+          spacing: { after: 160, before: 40 },
         }),
       ];
     case 'code':
       return b.text.split('\n').map(
-        (line) =>
+        (line, i, arr) =>
           new Paragraph({
-            children: [new TextRun({ text: line, font: 'Courier New', size: 18 })],
-            spacing: { after: 0 },
+            children: [new TextRun({ text: line || ' ', font: 'Consolas', size: 18, color: CODE_INK })],
+            shading: { type: ShadingType.CLEAR, fill: CODE_FILL, color: 'auto' },
+            spacing: { after: i === arr.length - 1 ? 160 : 0, before: i === 0 ? 80 : 0 },
           }),
       );
     case 'hr':
       return [
         new Paragraph({
-          children: [new TextRun('')],
-          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CCCCCC' } },
+          children: [],
+          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: BORDER } },
+          spacing: { after: 200, before: 200 },
         }),
       ];
     case 'table': {
+      const alignFor = (ci: number) =>
+        b.align?.[ci] === 'right' ? AlignmentType.RIGHT :
+        b.align?.[ci] === 'center' ? AlignmentType.CENTER :
+        AlignmentType.LEFT;
       const headerRow = new TableRow({
+        tableHeader: true,
         children: b.header.map(
-          (h) =>
+          (h, ci) =>
             new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })],
-              shading: { fill: 'F0F0F0' },
+              children: [new Paragraph({ alignment: alignFor(ci), children: parseInline(h).flatMap((s) => spanToRuns({ ...s, bold: true })) })],
+              shading: { type: ShadingType.CLEAR, fill: 'EEF1F5', color: 'auto' },
+              margins: { top: 60, bottom: 60, left: 100, right: 100 },
             }),
         ),
-        tableHeader: true,
       });
       const dataRows = b.rows.map(
-        (row) =>
+        (row, ri) =>
           new TableRow({
-            children: row.map(
-              (cell) =>
+            children: Array.from({ length: b.header.length }, (_, ci) => row[ci] ?? '').map(
+              (cell, ci) =>
                 new TableCell({
-                  children: [new Paragraph({ children: [new TextRun(cell)] })],
+                  children: [new Paragraph({ alignment: alignFor(ci), children: inlineRuns(cell) })],
+                  shading: ri % 2 === 1 ? { type: ShadingType.CLEAR, fill: 'F9FAFB', color: 'auto' } : undefined,
+                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
                 }),
             ),
           }),
       );
+      const edge = { style: BorderStyle.SINGLE, size: 4, color: BORDER };
       return [
         new Table({
           rows: [headerRow, ...dataRows],
           width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: { top: edge, bottom: edge, left: edge, right: edge, insideHorizontal: edge, insideVertical: edge },
         }),
+        new Paragraph({ children: [], spacing: { after: 160 } }),
       ];
     }
     default:
@@ -96,22 +155,42 @@ function blockToDocx(b: Block): (Paragraph | Table)[] {
 }
 
 const createDocx: ExecutorFn = async (req) => {
-  const content = req.content ?? '';
-  const blocks = parseMarkdown(content);
-  const title = req.title ?? req.name ?? 'Document';
+  const blocks = parseMarkdown(req.content ?? '');
+  const title = (req.title ?? req.name ?? 'Document').trim() || 'Document';
 
   const doc = new Document({
+    creator: 'AI Workspace',
+    title,
+    styles: {
+      default: {
+        document: { run: { font: 'Calibri', size: 22, color: INK } },
+      },
+    },
+    numbering: {
+      config: [
+        {
+          reference: 'ordered-list',
+          levels: [
+            { level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.START, style: { paragraph: { indent: { left: 360, hanging: 260 } } } },
+          ],
+        },
+        {
+          reference: 'bullet-list',
+          levels: [
+            { level: 0, format: LevelFormat.BULLET, text: '•', alignment: AlignmentType.START, style: { paragraph: { indent: { left: 360, hanging: 260 } } } },
+          ],
+        },
+      ],
+    },
     sections: [
       {
         properties: {},
         children: [
+          new Paragraph({ heading: HeadingLevel.TITLE, children: [new TextRun({ text: title })] }),
           new Paragraph({
-            heading: HeadingLevel.TITLE,
-            children: [new TextRun(title)],
-          }),
-          new Paragraph({
-            children: [new TextRun({ text: `Generated ${new Date().toLocaleDateString()}`, color: '999999', size: 20 })],
-            spacing: { after: 400 },
+            children: [new TextRun({ text: `Generated ${new Date().toLocaleDateString()}`, color: MUTED, size: 20, italics: true })],
+            spacing: { after: 360 },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: BORDER, space: 8 } },
           }),
           ...blocks.flatMap(blockToDocx),
         ],
@@ -120,12 +199,7 @@ const createDocx: ExecutorFn = async (req) => {
   });
 
   const buffer = Buffer.from(await Packer.toBuffer(doc));
-  return {
-    buffer,
-    kind: 'docx',
-    mime: MIME_BY_KIND.docx,
-    ext: EXT_BY_KIND.docx,
-  };
+  return { buffer, kind: 'docx', mime: MIME_BY_KIND.docx, ext: EXT_BY_KIND.docx };
 };
 
 export default createDocx;

@@ -244,42 +244,46 @@ export function ChatInput({
         )}
 
         <div className="flex items-end gap-2">
-          <Tooltip label="Attach files (images, PDF, text)">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
-              aria-label="Attach files"
-            >
-              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-            </button>
-          </Tooltip>
-          <Tooltip label="Edit a document with AI">
-            <button
-              onClick={() => setDocEditOpen(true)}
-              disabled={disabled}
-              className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
-              aria-label="Document editor"
-            >
-              <FileText className="h-5 w-5" />
-            </button>
-          </Tooltip>
-          <Tooltip label={webSearch ? 'Web search on — model will search before answering' : 'Search the web for this message'}>
-            <button
-              onClick={() => setWebSearch((v) => !v)}
-              disabled={disabled}
-              aria-label="Toggle web search"
-              aria-pressed={webSearch}
-              className={cn(
-                'focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40',
-                webSearch
-                  ? 'bg-accent text-accent-fg'
-                  : 'text-content-muted hover:bg-accent/20 hover:text-content',
-              )}
-            >
-              <Globe className="h-5 w-5" />
-            </button>
-          </Tooltip>
+          {/* Compact action group — attach / document / web search share one
+              pill so they read as a single control and don't crowd the input. */}
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-border/5 p-0.5">
+            <Tooltip label="Attach files (images, PDF, text)">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
+                aria-label="Attach files"
+              >
+                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+              </button>
+            </Tooltip>
+            <Tooltip label="Edit a document with AI">
+              <button
+                onClick={() => setDocEditOpen(true)}
+                disabled={disabled}
+                className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
+                aria-label="Document editor"
+              >
+                <FileText className="h-5 w-5" />
+              </button>
+            </Tooltip>
+            <Tooltip label={webSearch ? 'Web search on — model will search before answering' : 'Search the web for this message'}>
+              <button
+                onClick={() => setWebSearch((v) => !v)}
+                disabled={disabled}
+                aria-label="Toggle web search"
+                aria-pressed={webSearch}
+                className={cn(
+                  'focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40',
+                  webSearch
+                    ? 'bg-accent text-accent-fg'
+                    : 'text-content-muted hover:bg-accent/20 hover:text-content',
+                )}
+              >
+                <Globe className="h-5 w-5" />
+              </button>
+            </Tooltip>
+          </div>
           <input
             ref={fileInputRef}
             type="file"

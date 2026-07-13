@@ -9,21 +9,26 @@ const zipProject: ExecutorFn = async (req) => {
   const files = req.files ?? [];
 
   for (const file of files) {
-    zip.file(file.path, file.content);
+    // Normalize paths: strip leading slashes and collapse .. so a stray path
+    // can't try to escape the archive root.
+    const path = file.path.replace(/^[/\\]+/, '').replace(/\.\.[/\\]/g, '');
+    if (path) zip.file(path, file.content ?? '');
   }
 
-  // If no files provided, create a placeholder
   if (files.length === 0) {
     zip.file('README.md', req.content ?? '# Project\n\nEmpty project.');
   }
 
-  const buffer = Buffer.from(await zip.generateAsync({ type: 'nodebuffer' }));
-  return {
-    buffer,
-    kind: 'zip',
-    mime: MIME_BY_KIND.zip,
-    ext: EXT_BY_KIND.zip,
-  };
+  // DEFLATE compression — the previous default stored files uncompressed, so a
+  // text-heavy bundle was needlessly large.
+  const buffer = Buffer.from(
+    await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    }),
+  );
+  return { buffer, kind: 'zip', mime: MIME_BY_KIND.zip, ext: EXT_BY_KIND.zip };
 };
 
 export default zipProject;

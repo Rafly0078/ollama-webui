@@ -1,223 +1,376 @@
 import 'server-only';
 
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type RGB } from 'pdf-lib';
 import type { ExecutorFn } from './index';
-import { stripInline, parseMarkdown, type Block } from '@/lib/documents/markdown';
+import { parseInline, parseMarkdown, type Block, type Span } from '@/lib/documents/markdown';
 import { MIME_BY_KIND, EXT_BY_KIND } from '../types';
+
+/**
+ * PDF generation with real font metrics. Text is wrapped by measuring glyph
+ * widths (not by guessing characters-per-line); inline bold, italic, code and
+ * links render as styled runs, and non-Latin-1 characters are transliterated
+ * to their closest WinAnsi equivalent rather than silently dropped — the
+ * StandardFonts only speak WinAnsi, so an em-dash or smart quote would
+ * otherwise crash drawText or vanish.
+ */
+
+const PUNCT: Record<string, string> = {
+  '‘': "'", '’': "'", '‚': ',', '‛': "'",
+  '“': '"', '”': '"', '„': '"',
+  '–': '-', '—': '-', '―': '-', '−': '-',
+  '…': '...', '•': '-', '·': '-', '‣': '-',
+  ' ': ' ', ' ': ' ', ' ': ' ', '​': '',
+  '→': '->', '←': '<-', '↔': '<->', '⇒': '=>',
+  '≤': '<=', '≥': '>=', '≠': '!=', '×': 'x', '÷': '/',
+  '™': '(TM)', '®': '(R)', '©': '(C)', '€': 'EUR',
+  '☑': '[x]', '☐': '[ ]', '✓': 'v', '✗': 'x',
+};
+
+/** Fold text into the Latin-1 range the standard PDF fonts can render. */
+function toWinAnsi(s: string): string {
+  const mapped = Array.from(s)
+    .map((ch) => PUNCT[ch] ?? ch)
+    .join('');
+  // Decompose accents (é → e +  ́) then drop the combining marks, so accented
+  // Latin text degrades to readable base letters instead of being deleted.
+  const deaccented = mapped.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+  // eslint-disable-next-line no-control-regex
+  return deaccented.replace(/[^\x09\x0A\x0D\x20-\xFF]/g, '');
+}
+
+const INK = rgb(0.12, 0.12, 0.12);
+const MUTED = rgb(0.45, 0.45, 0.45);
+const LINK = rgb(0.13, 0.4, 0.75);
+const CODE_INK = rgb(0.15, 0.2, 0.28);
+const RULE = rgb(0.82, 0.82, 0.82);
+const CODE_BG = rgb(0.96, 0.965, 0.97);
+const TABLE_HEAD_BG = rgb(0.93, 0.94, 0.95);
+
+interface Fonts {
+  regular: PDFFont;
+  bold: PDFFont;
+  italic: PDFFont;
+  boldItalic: PDFFont;
+  mono: PDFFont;
+  monoBold: PDFFont;
+}
+
+/** One measured word ready to place, carrying the font/color it renders with. */
+interface Word {
+  text: string;
+  font: PDFFont;
+  size: number;
+  color: RGB;
+  width: number;
+  spaceBefore: boolean;
+}
 
 const createPdf: ExecutorFn = async (req) => {
   const pdfDoc = await PDFDocument.create();
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const monoFont = await pdfDoc.embedFont(StandardFonts.Courier);
+  const fonts: Fonts = {
+    regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
+    bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    italic: await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
+    boldItalic: await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
+    mono: await pdfDoc.embedFont(StandardFonts.Courier),
+    monoBold: await pdfDoc.embedFont(StandardFonts.CourierBold),
+  };
 
-  // PERBAIKAN: Saring konten teks untuk menghapus karakter di luar format WinAnsi (seperti Emoji)
-  const rawContent = req.content ?? '';
-  const content = rawContent.replace(/[^\x00-\xFF]/g, ''); 
-  const blocks = parseMarkdown(content);
-  
-  // PERBAIKAN: Saring juga bagian judul
-  const rawTitle = req.title ?? req.name ?? 'Document';
-  let title = rawTitle.replace(/[^\x00-\xFF]/g, '');
-  if (!title.trim()) title = 'Document'; // Fallback jika judul aslinya isinya cuma emoji
+  const blocks = parseMarkdown(req.content ?? '');
+  let title = toWinAnsi((req.title ?? req.name ?? 'Document').trim());
+  if (!title) title = 'Document';
 
-  // Title page
-  const titlePage = pdfDoc.addPage();
-  const { width, height } = titlePage.getSize();
-  titlePage.drawText(title, {
-    x: 72,
-    y: height - 150,
-    size: 28,
-    font: boldFont,
-    color: rgb(0.1, 0.1, 0.1),
-  });
-  titlePage.drawText(`Generated ${new Date().toLocaleDateString()}`, {
-    x: 72,
-    y: height - 190,
-    size: 12,
-    font,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-
-  // Content pages
-  const marginX = 72;
+  const marginX = 64;
   const marginTop = 72;
-  const marginBot = 72;
-  const fontSize = 11;
-  const lineHeight = 16;
-  const maxW = width - 2 * marginX;
+  const marginBot = 64;
+  const bodySize = 11;
+  const bodyLead = 15;
+
+  // Title header on the first page (no separate cover page — wastes paper for
+  // the short documents these tools usually produce).
   let page = pdfDoc.addPage();
-  let y = page.getSize().height - marginTop;
-  const pageH = () => page.getSize().height;
+  let { width, height } = page.getSize();
+  const contentW = width - 2 * marginX;
+  let y = height - marginTop;
 
-  function newPage() {
+  const newPage = () => {
     page = pdfDoc.addPage();
-    y = pageH() - marginTop;
-  }
-
-  function ensureSpace(need: number) {
+    ({ width, height } = page.getSize());
+    y = height - marginTop;
+  };
+  const ensure = (need: number) => {
     if (y - need < marginBot) newPage();
-  }
+  };
 
-  function drawLine(text: string, opts?: { bold?: boolean; size?: number; mono?: boolean }) {
-    const f = opts?.mono ? monoFont : opts?.bold ? boldFont : font;
-    const sz = opts?.size ?? fontSize;
-    const lineH = sz + 5;
-    ensureSpace(lineH);
-    
-    // PERBAIKAN TAMBAHAN: Saring ulang per baris untuk jaga-jaga
-    const safeText = text.replace(/[^\x00-\xFF]/g, '');
-    
-    page.drawText(safeText, { x: marginX, y, size: sz, font: f, color: rgb(0.1, 0.1, 0.1) });
-    y -= lineH;
-  }
+  const fontFor = (sp: Span, mono = false): PDFFont => {
+    if (sp.code || mono) return sp.bold ? fonts.monoBold : fonts.mono;
+    if (sp.bold && sp.italic) return fonts.boldItalic;
+    if (sp.bold) return fonts.bold;
+    if (sp.italic) return fonts.italic;
+    return fonts.regular;
+  };
 
-  function wrapText(text: string, maxCharsPerLine: number): string[] {
-    const words = text.split(/\s+/);
-    const lines: string[] = [];
-    let line = '';
-    for (const w of words) {
-      if (line && line.length + 1 + w.length > maxCharsPerLine) {
-        lines.push(line);
-        line = w;
-      } else {
-        line = line ? `${line} ${w}` : w;
+  /** Break styled spans into measured words with spacing preserved. */
+  const toWords = (spans: Span[], size: number, forceColor?: RGB): Word[] => {
+    const words: Word[] = [];
+    let pendingSpace = false;
+    for (const sp of spans) {
+      const font = fontFor(sp);
+      const color = forceColor ?? (sp.href ? LINK : sp.code ? CODE_INK : INK);
+      const parts = toWinAnsi(sp.text).split(/(\s+)/);
+      for (const part of parts) {
+        if (part === '') continue;
+        if (/^\s+$/.test(part)) {
+          pendingSpace = true;
+          continue;
+        }
+        words.push({
+          text: part,
+          font,
+          size,
+          color,
+          width: font.widthOfTextAtSize(part, size),
+          spaceBefore: pendingSpace,
+        });
+        pendingSpace = false;
       }
     }
-    if (line) lines.push(line);
-    return lines.length ? lines : [''];
-  }
+    return words;
+  };
 
-  const maxChars = Math.floor(maxW / (fontSize * 0.5));
+  /** Greedy line-break measured words to fit `maxW`. */
+  const layout = (words: Word[], maxW: number): Word[][] => {
+    const lines: Word[][] = [];
+    let line: Word[] = [];
+    let lineW = 0;
+    for (const w of words) {
+      const spaceW = w.spaceBefore && line.length ? w.font.widthOfTextAtSize(' ', w.size) : 0;
+      // Hard-wrap a single word longer than the whole line so it can't overflow.
+      if (line.length && lineW + spaceW + w.width > maxW) {
+        lines.push(line);
+        line = [];
+        lineW = 0;
+      }
+      const lead = line.length ? spaceW : 0;
+      line.push({ ...w, spaceBefore: lead > 0 });
+      lineW += lead + w.width;
+    }
+    if (line.length) lines.push(line);
+    return lines.length ? lines : [[]];
+  };
 
-  function renderBlock(b: Block) {
+  const drawLine = (line: Word[], x0: number, size: number) => {
+    let x = x0;
+    for (const w of line) {
+      if (w.spaceBefore) x += w.font.widthOfTextAtSize(' ', size);
+      page.drawText(w.text, { x, y, size, font: w.font, color: w.color });
+      x += w.width;
+    }
+  };
+
+  /** Render styled spans as a wrapped paragraph at the current cursor. */
+  const flowSpans = (spans: Span[], opts?: { size?: number; indent?: number; color?: RGB; lead?: number }) => {
+    const size = opts?.size ?? bodySize;
+    const indent = opts?.indent ?? 0;
+    const lead = opts?.lead ?? bodyLead;
+    const words = toWords(spans, size, opts?.color);
+    for (const line of layout(words, contentW - indent)) {
+      ensure(lead);
+      drawLine(line, marginX + indent, size);
+      y -= lead;
+    }
+  };
+
+  const renderBlock = (b: Block) => {
     switch (b.type) {
       case 'heading': {
-        const sz = b.level === 1 ? 20 : b.level === 2 ? 16 : 13;
-        ensureSpace(sz + 10);
-        y -= 8;
-        drawLine(stripInline(b.text), { bold: true, size: sz });
+        const size = b.level === 1 ? 19 : b.level === 2 ? 15 : b.level === 3 ? 13 : 12;
+        y -= b.level <= 2 ? 10 : 6;
+        ensure(size + 6);
+        flowSpans(
+          parseInline(b.text).map((s) => ({ ...s, bold: true })),
+          { size, lead: size + 4 },
+        );
+        if (b.level === 1) {
+          y -= 2;
+          ensure(6);
+          page.drawLine({
+            start: { x: marginX, y: y + 4 },
+            end: { x: width - marginX, y: y + 4 },
+            thickness: 0.75,
+            color: RULE,
+          });
+          y -= 6;
+        }
         y -= 4;
         break;
       }
-      case 'paragraph': {
-        for (const line of wrapText(stripInline(b.text), maxChars)) {
-          drawLine(line);
-        }
+      case 'paragraph':
+        flowSpans(parseInline(b.text));
         y -= 6;
         break;
-      }
-      case 'list': {
-        b.items.forEach((item, i) => {
-          const prefix = b.ordered ? `${i + 1}. ` : '- '; // Ganti bullet poin Unicode menjadi strip biasa
-          for (const line of wrapText(stripInline(item), maxChars - 2)) {
-            drawLine(`${prefix}${line}`);
-          }
-        });
-        y -= 4;
-        break;
-      }
-      case 'quote': {
-        for (const line of wrapText(stripInline(b.text), maxChars - 4)) {
-          ensureSpace(lineHeight);
-          const safeLine = line.replace(/[^\x00-\xFF]/g, '');
-          page.drawText(`  ${safeLine}`, {
-            x: marginX + 20,
-            y,
-            size: fontSize,
-            font,
-            color: rgb(0.4, 0.4, 0.4),
+      case 'list':
+        b.items.forEach((item, idx) => {
+          const marker = b.ordered ? `${idx + 1}.` : '-';
+          const markerW = fonts.regular.widthOfTextAtSize(`${marker} `, bodySize);
+          ensure(bodyLead);
+          page.drawText(`${marker}`, { x: marginX + 6, y, size: bodySize, font: fonts.regular, color: INK });
+          const words = toWords(parseInline(item), bodySize);
+          const lines = layout(words, contentW - markerW - 12);
+          lines.forEach((line, li) => {
+            if (li > 0) ensure(bodyLead);
+            drawLine(line, marginX + 12 + markerW, bodySize);
+            y -= bodyLead;
           });
-          y -= lineHeight;
-        }
-        y -= 4;
+        });
+        y -= 6;
+        break;
+      case 'quote': {
+        const words = toWords(parseInline(b.text), bodySize, MUTED);
+        const lines = layout(words, contentW - 24);
+        const top = y;
+        lines.forEach((line) => {
+          ensure(bodyLead);
+          drawLine(line, marginX + 20, bodySize);
+          y -= bodyLead;
+        });
+        page.drawRectangle({
+          x: marginX + 6,
+          y: y + bodyLead - 2,
+          width: 3,
+          height: top - y - bodyLead + bodySize,
+          color: RULE,
+        });
+        y -= 6;
         break;
       }
       case 'code': {
-        for (const line of b.text.split('\n')) {
-          ensureSpace(lineHeight);
+        const size = 9.5;
+        const lead = 13;
+        const lines = b.text.split('\n');
+        for (const raw of lines) {
+          ensure(lead);
           page.drawRectangle({
             x: marginX,
-            y: y - 2,
-            width: maxW,
-            height: lineHeight,
-            color: rgb(0.95, 0.95, 0.95),
+            y: y - 3,
+            width: contentW,
+            height: lead,
+            color: CODE_BG,
           });
-          const safeLine = line.slice(0, maxChars + 20).replace(/[^\x00-\xFF]/g, '');
-          page.drawText(safeLine, {
-            x: marginX + 8,
-            y,
-            size: 9,
-            font: monoFont,
-            color: rgb(0.2, 0.2, 0.2),
-          });
-          y -= lineHeight;
+          // Clip overly long code lines by measured width rather than char count.
+          let text = toWinAnsi(raw.replace(/\t/g, '  '));
+          while (text && fonts.mono.widthOfTextAtSize(text, size) > contentW - 16) {
+            text = text.slice(0, -1);
+          }
+          page.drawText(text, { x: marginX + 8, y, size, font: fonts.mono, color: CODE_INK });
+          y -= lead;
         }
-        y -= 6;
+        y -= 8;
         break;
       }
-      case 'hr': {
-        ensureSpace(20);
-        y -= 10;
+      case 'hr':
+        ensure(16);
+        y -= 6;
         page.drawLine({
           start: { x: marginX, y },
           end: { x: width - marginX, y },
-          thickness: 1,
-          color: rgb(0.8, 0.8, 0.8),
+          thickness: 0.75,
+          color: RULE,
         });
-        y -= 10;
+        y -= 12;
         break;
-      }
-      case 'table': {
-        const cols = b.header.length;
-        const colW = Math.floor(maxW / cols);
-        // Header
-        ensureSpace(lineHeight + 4);
-        b.header.forEach((h, ci) => {
-          const safeH = stripInline(h).slice(0, Math.floor(colW / 5)).replace(/[^\x00-\xFF]/g, '');
-          page.drawText(safeH, {
-            x: marginX + ci * colW + 4,
-            y,
-            size: fontSize,
-            font: boldFont,
-            color: rgb(0.1, 0.1, 0.1),
-          });
-        });
-        y -= lineHeight;
-        // Rows
-        for (const row of b.rows) {
-          ensureSpace(lineHeight);
-          row.forEach((cell, ci) => {
-            if (ci < cols) {
-              const safeCell = stripInline(cell).slice(0, Math.floor(colW / 5)).replace(/[^\x00-\xFF]/g, '');
-              page.drawText(safeCell, {
-                x: marginX + ci * colW + 4,
-                y,
-                size: fontSize,
-                font,
-                color: rgb(0.2, 0.2, 0.2),
-              });
-            }
-          });
-          y -= lineHeight;
-        }
-        y -= 6;
+      case 'table':
+        renderTable(b);
         break;
-      }
     }
-  }
+  };
 
-  for (const b of blocks) {
-    renderBlock(b);
-  }
+  const renderTable = (b: Extract<Block, { type: 'table' }>) => {
+    const cols = Math.max(b.header.length, ...b.rows.map((r) => r.length), 1);
+    const colW = contentW / cols;
+    const size = 9.5;
+    const cellPad = 5;
+    const lineH = 12;
+
+    const drawRow = (cells: string[], isHeader: boolean) => {
+      // Pre-wrap every cell to know the row height before drawing.
+      const wrapped = Array.from({ length: cols }, (_, ci) => {
+        const spans = parseInline(cells[ci] ?? '');
+        const words = toWords(
+          isHeader ? spans.map((s) => ({ ...s, bold: true })) : spans,
+          size,
+        );
+        return layout(words, colW - 2 * cellPad);
+      });
+      const rowH = Math.max(1, ...wrapped.map((w) => w.length)) * lineH + cellPad;
+      ensure(rowH);
+      const rowTop = y;
+      if (isHeader) {
+        page.drawRectangle({ x: marginX, y: rowTop - rowH + lineH - 1, width: contentW, height: rowH, color: TABLE_HEAD_BG });
+      }
+      wrapped.forEach((lines, ci) => {
+        const align = b.align?.[ci] ?? 'left';
+        let ly = rowTop;
+        lines.forEach((line) => {
+          const lineW = line.reduce(
+            (acc, w) => acc + w.width + (w.spaceBefore ? w.font.widthOfTextAtSize(' ', size) : 0),
+            0,
+          );
+          let x = marginX + ci * colW + cellPad;
+          if (align === 'right') x = marginX + (ci + 1) * colW - cellPad - lineW;
+          else if (align === 'center') x = marginX + ci * colW + (colW - lineW) / 2;
+          let cx = x;
+          for (const w of line) {
+            if (w.spaceBefore) cx += w.font.widthOfTextAtSize(' ', size);
+            page.drawText(w.text, { x: cx, y: ly, size, font: w.font, color: INK });
+            cx += w.width;
+          }
+          ly -= lineH;
+        });
+      });
+      y = rowTop - rowH;
+      page.drawLine({ start: { x: marginX, y: y + lineH - 2 }, end: { x: width - marginX, y: y + lineH - 2 }, thickness: 0.5, color: RULE });
+    };
+
+    y -= 4;
+    ensure(lineH * 2);
+    drawRow(b.header, true);
+    for (const row of b.rows) drawRow(row, false);
+    // Vertical column separators across the table's drawn height are skipped to
+    // keep the renderer simple; horizontal rules already delimit rows clearly.
+    y -= 10;
+  };
+
+  // ---- Title, then body ----
+  ensure(40);
+  flowSpans([{ text: title, bold: true }], { size: 24, lead: 30 });
+  y -= 2;
+  flowSpans([{ text: `Generated ${new Date().toLocaleDateString()}`, italic: true }], {
+    size: 10,
+    color: MUTED,
+    lead: 16,
+  });
+  page.drawLine({ start: { x: marginX, y: y + 4 }, end: { x: width - marginX, y: y + 4 }, thickness: 1, color: RULE });
+  y -= 16;
+
+  for (const b of blocks) renderBlock(b);
+
+  // Footer page numbers, added last so the total count is known.
+  const pages = pdfDoc.getPages();
+  pages.forEach((p: PDFPage, idx) => {
+    const label = `${idx + 1} / ${pages.length}`;
+    const w = fonts.regular.widthOfTextAtSize(label, 9);
+    p.drawText(label, {
+      x: p.getSize().width / 2 - w / 2,
+      y: 32,
+      size: 9,
+      font: fonts.regular,
+      color: MUTED,
+    });
+  });
 
   const buffer = Buffer.from(await pdfDoc.save());
-  return {
-    buffer,
-    kind: 'pdf',
-    mime: MIME_BY_KIND.pdf,
-    ext: EXT_BY_KIND.pdf,
-  };
+  return { buffer, kind: 'pdf', mime: MIME_BY_KIND.pdf, ext: EXT_BY_KIND.pdf };
 };
 
 export default createPdf;
