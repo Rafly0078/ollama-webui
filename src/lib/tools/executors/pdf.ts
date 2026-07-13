@@ -11,9 +11,15 @@ const createPdf: ExecutorFn = async (req) => {
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const monoFont = await pdfDoc.embedFont(StandardFonts.Courier);
 
-  const content = req.content ?? '';
+  // PERBAIKAN: Saring konten teks untuk menghapus karakter di luar format WinAnsi (seperti Emoji)
+  const rawContent = req.content ?? '';
+  const content = rawContent.replace(/[^\x00-\xFF]/g, ''); 
   const blocks = parseMarkdown(content);
-  const title = req.title ?? req.name ?? 'Document';
+  
+  // PERBAIKAN: Saring juga bagian judul
+  const rawTitle = req.title ?? req.name ?? 'Document';
+  let title = rawTitle.replace(/[^\x00-\xFF]/g, '');
+  if (!title.trim()) title = 'Document'; // Fallback jika judul aslinya isinya cuma emoji
 
   // Title page
   const titlePage = pdfDoc.addPage();
@@ -58,7 +64,11 @@ const createPdf: ExecutorFn = async (req) => {
     const sz = opts?.size ?? fontSize;
     const lineH = sz + 5;
     ensureSpace(lineH);
-    page.drawText(text, { x: marginX, y, size: sz, font: f, color: rgb(0.1, 0.1, 0.1) });
+    
+    // PERBAIKAN TAMBAHAN: Saring ulang per baris untuk jaga-jaga
+    const safeText = text.replace(/[^\x00-\xFF]/g, '');
+    
+    page.drawText(safeText, { x: marginX, y, size: sz, font: f, color: rgb(0.1, 0.1, 0.1) });
     y -= lineH;
   }
 
@@ -99,7 +109,7 @@ const createPdf: ExecutorFn = async (req) => {
       }
       case 'list': {
         b.items.forEach((item, i) => {
-          const prefix = b.ordered ? `${i + 1}. ` : '• ';
+          const prefix = b.ordered ? `${i + 1}. ` : '- '; // Ganti bullet poin Unicode menjadi strip biasa
           for (const line of wrapText(stripInline(item), maxChars - 2)) {
             drawLine(`${prefix}${line}`);
           }
@@ -110,7 +120,8 @@ const createPdf: ExecutorFn = async (req) => {
       case 'quote': {
         for (const line of wrapText(stripInline(b.text), maxChars - 4)) {
           ensureSpace(lineHeight);
-          page.drawText(`  ${line}`, {
+          const safeLine = line.replace(/[^\x00-\xFF]/g, '');
+          page.drawText(`  ${safeLine}`, {
             x: marginX + 20,
             y,
             size: fontSize,
@@ -132,7 +143,8 @@ const createPdf: ExecutorFn = async (req) => {
             height: lineHeight,
             color: rgb(0.95, 0.95, 0.95),
           });
-          page.drawText(line.slice(0, maxChars + 20), {
+          const safeLine = line.slice(0, maxChars + 20).replace(/[^\x00-\xFF]/g, '');
+          page.drawText(safeLine, {
             x: marginX + 8,
             y,
             size: 9,
@@ -162,7 +174,8 @@ const createPdf: ExecutorFn = async (req) => {
         // Header
         ensureSpace(lineHeight + 4);
         b.header.forEach((h, ci) => {
-          page.drawText(stripInline(h).slice(0, Math.floor(colW / 5)), {
+          const safeH = stripInline(h).slice(0, Math.floor(colW / 5)).replace(/[^\x00-\xFF]/g, '');
+          page.drawText(safeH, {
             x: marginX + ci * colW + 4,
             y,
             size: fontSize,
@@ -176,7 +189,8 @@ const createPdf: ExecutorFn = async (req) => {
           ensureSpace(lineHeight);
           row.forEach((cell, ci) => {
             if (ci < cols) {
-              page.drawText(stripInline(cell).slice(0, Math.floor(colW / 5)), {
+              const safeCell = stripInline(cell).slice(0, Math.floor(colW / 5)).replace(/[^\x00-\xFF]/g, '');
+              page.drawText(safeCell, {
                 x: marginX + ci * colW + 4,
                 y,
                 size: fontSize,
