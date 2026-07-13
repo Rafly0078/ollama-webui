@@ -18,10 +18,16 @@ function PlainFallback({ content }: { content: string }) {
   return <div className="prose-chat whitespace-pre-wrap break-words">{content}</div>;
 }
 
-export const Markdown = memo(function Markdown({ content }: { content: string }) {
+export const Markdown = memo(function Markdown({
+  content,
+  streaming,
+}: {
+  content: string;
+  streaming?: boolean;
+}) {
   return (
     <Suspense fallback={<PlainFallback content={content} />}>
-      <MarkdownRenderer content={content} />
+      <MarkdownRenderer content={content} streaming={streaming} />
     </Suspense>
   );
 });

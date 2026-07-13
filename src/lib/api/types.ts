@@ -1,5 +1,5 @@
 import type { GenerationParams, Message } from '@/types';
-import { buildToolsSystemPrompt } from '../tools/prompt';
+import { TOOL_INSTRUCTIONS } from '@/lib/tools/prompt';
 
 /** Wire types matching an Ollama-compatible proxy. */
 
@@ -64,9 +64,10 @@ export interface ModelsResponse {
 /** Map app messages → wire messages, folding attachments into content/images. */
 export function toApiMessages(messages: Message[], systemPrompt: string): ApiChatMessage[] {
   const out: ApiChatMessage[] = [];
-  const combinedSystem = [systemPrompt.trim(), buildToolsSystemPrompt()]
-    .filter(Boolean)
-    .join('\n\n---\n\n');
+  // TOOL_INSTRUCTIONS is always included — even conversations created before
+  // this existed (whose stored systemPrompt predates it) still get a model
+  // that knows the artifact directive format.
+  const combinedSystem = [systemPrompt.trim(), TOOL_INSTRUCTIONS].filter(Boolean).join('\n\n');
   if (combinedSystem) out.push({ role: 'system', content: combinedSystem });
 
   for (const m of messages) {

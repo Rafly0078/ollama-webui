@@ -1,45 +1,39 @@
 /**
- * System-prompt instructions that teach the model how to produce real,
- * downloadable files via the tool engine.
+ * System-prompt fragment that teaches the model how to invoke the
+ * document-generation tools. Appended to EVERY outgoing chat request inside
+ * `toApiMessages` (src/lib/api/types.ts) regardless of whatever custom
+ * system prompt a given conversation has stored — so the directive format
+ * works even in chats created before this file existed, without the user
+ * having to reset anything.
  *
- * Without this, the model has no way to know the ```artifact convention
- * (see detect.ts) exists — it will only ever describe or paste document
- * content as plain chat text, and nothing will ever be detected, executed,
- * or shown as a downloadable file. This is appended to every conversation's
- * system prompt in toApiMessages() so the capability works out of the box.
+ * Deliberately NOT JSON. The previous format required the model to emit one
+ * giant JSON object with the entire document escaped into a single string
+ * field. Small/quantized models reliably lose track of quote and newline
+ * escaping over a long document and produce invalid JSON, which silently
+ * fails to parse (see detectArtifacts in ./detect.ts) — the raw, broken
+ * block is then left behind and gets misrendered as a generic, misleadingly
+ * "finished-looking" code block instead of ever calling the tool. A plain
+ * "key: value" header followed by a raw body avoids escaping entirely,
+ * which is far more robust for weaker local models.
  */
+export const TOOL_INSTRUCTIONS = `You can generate downloadable files for the user: PDF, Word (docx), PowerPoint (pptx), Excel (xlsx), CSV, Markdown, HTML, JSON, XML, or plain text.
 
-import { TOOLS } from './registry';
+To generate a file, emit exactly one block in this exact shape — a few "key: value" header lines, then a line containing only "---", then the raw file content:
 
-export function buildToolsSystemPrompt(): string {
-  const toolList = TOOLS.filter((t) => t.name !== 'export_chat')
-    .map((t) => `- ${t.name} → ${t.description}`)
-    .join('\n');
+\`\`\`artifact
+tool: create_pdf
+name: report.pdf
+title: Report Title
+---
+Write the full document content here as plain Markdown.
+Use as many lines and paragraphs as the document actually needs.
+Do not wrap this in JSON and do not escape quotes or newlines — write it naturally, exactly as you would write normal Markdown.
+\`\`\`
 
-  return [
-    'You can produce real, downloadable files for the user (PDF, Word, PowerPoint, Excel, CSV, Markdown, HTML, JSON, XML, ZIP). To do this, emit a fenced code block tagged "artifact" containing ONE valid JSON object and nothing else — no prose inside the block. The app extracts this block, generates the actual file server-side, and shows the user a download card in its place. Never paste the raw file content into your normal reply as well — the artifact block IS the deliverable.',
-    '',
-    'Format:',
-    '```artifact',
-    '{ "tool": "create_pdf", "name": "report.pdf", "title": "Quarterly Report", "content": "# Quarterly Report\\n\\nBody text in Markdown here..." }',
-    '```',
-    '',
-    'Available tools:',
-    toolList,
-    '',
-    'Field notes per tool:',
-    '- create_pdf, create_docx, create_html, create_txt, create_md: "title" + "content" (Markdown).',
-    '- create_pptx: "slides": [{ "title": "...", "bullets": ["...", "..."] }, ...] — or omit and use "content" as Markdown with "##" headings starting each slide.',
-    '- create_xlsx: "sheets": [{ "name": "Sheet1", "rows": [["Header1","Header2"], ["a", 1], ...] }] — or a flat "rows" array (first row = header) for a single sheet.',
-    '- create_csv: "rows": [["Header1","Header2"], ["a", "b"], ...] (first row = header).',
-    '- create_json: "data" (any JSON value).',
-    '- create_xml: "data" (any JSON value — converted to XML).',
-    '- zip_project: "files": [{ "path": "src/index.js", "content": "..." }, ...].',
-    '',
-    'Rules:',
-    '- Only emit an artifact block when the user actually wants a file to download (e.g. "buatkan PDF", "generate a docx", "export this as excel") — not for ordinary answers or code snippets shown for reading.',
-    '- The JSON must be strictly valid: escape newlines as \\n and double quotes as \\", no comments, no trailing commas, no unescaped control characters.',
-    '- You may emit more than one artifact block if the user asked for multiple files.',
-    '- If the user uploaded a file, its extracted text appears earlier in the conversation as "[Attached file: name] ```...```". When asked to edit, convert, or regenerate that document, base "content" on that extracted text and emit the appropriate create_* artifact — you cannot edit the original binary layout, but you can reproduce its content (edited as requested) as a new file.',
-  ].join('\n');
-}
+Rules:
+- "tool" must be exactly one of: create_pdf, create_docx, create_pptx, create_xlsx, create_csv, create_md, create_html, create_json, create_xml, create_txt.
+- "name" and "title" are optional but recommended.
+- Only use this block when the user actually asks you to create, generate, export, or download a file. For a normal question, just answer normally in Markdown — never use this block.
+- Emit exactly one block per file, and nothing else inside it — no commentary, no nested code fences.
+- Always write the complete document before closing the block. Never stop partway through a sentence, even for long documents.
+- For "create_csv", write plain comma-separated rows (one row per line) as the body instead of Markdown.`;

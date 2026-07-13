@@ -7,23 +7,6 @@ import type { ChatStreamChunk } from './types';
  *
  * Yields decoded chunks incrementally. Robust to partial lines across reads.
  */
-/**
- * Thrown when the upstream body contained real data but none of it was
- * parseable as a chat chunk — e.g. an HTML error page, a truncated response,
- * or a JSON shape this parser doesn't recognize. Carries a snippet of the raw
- * body so the failure is diagnosable instead of silently producing nothing.
- */
-export class StreamParseError extends Error {
-  raw: string;
-  constructor(raw: string) {
-    super(
-      `The server's response could not be parsed as a chat stream. Raw response (truncated): ${raw.slice(0, 300)}`,
-    );
-    this.name = 'StreamParseError';
-    this.raw = raw;
-  }
-}
-
 export async function* parseChatStream(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
@@ -32,55 +15,27 @@ export async function* parseChatStream(
   const decoder = new TextDecoder();
   let buffer = '';
 
-  // Diagnostics: did we ever see a genuinely parseable chunk, and how much
-  // raw text did we receive overall? Lets us tell "quiet keepalive stream"
-  // apart from "the whole response was garbage".
-  let sawValidChunk = false;
-  let rawSeen = '';
-  const RAW_SNIPPET_CAP = 2000;
-
-  const trackRaw = (s: string) => {
-    if (rawSeen.length < RAW_SNIPPET_CAP) rawSeen += s;
-  };
-
   try {
     while (true) {
       if (signal?.aborted) break;
       const { done, value } = await reader.read();
       if (done) break;
-      const decoded = decoder.decode(value, { stream: true });
-      buffer += decoded;
+      buffer += decoder.decode(value, { stream: true });
 
       // Split on newlines; keep the trailing partial line in the buffer.
       let nlIndex: number;
       while ((nlIndex = buffer.indexOf('\n')) >= 0) {
         const rawLine = buffer.slice(0, nlIndex).trim();
         buffer = buffer.slice(nlIndex + 1);
-        if (rawLine) trackRaw(rawLine + '\n');
         const chunk = decodeLine(rawLine);
-        if (chunk) {
-          sawValidChunk = true;
-          yield chunk;
-        }
+        if (chunk) yield chunk;
       }
     }
     // Flush any final buffered line.
     const tail = buffer.trim();
     if (tail) {
-      trackRaw(tail);
       const chunk = decodeLine(tail);
-      if (chunk) {
-        sawValidChunk = true;
-        yield chunk;
-      }
-    }
-
-    // The stream ended, we received bytes, but none of them were a chunk we
-    // could understand. Previously this was swallowed entirely (treated the
-    // same as harmless keepalive noise), which left the UI with an empty
-    // assistant message and no indication anything went wrong. Surface it.
-    if (!sawValidChunk && rawSeen.trim() && !signal?.aborted) {
-      throw new StreamParseError(rawSeen);
+      if (chunk) yield chunk;
     }
   } finally {
     // Ensure the underlying connection is released even on early break.
@@ -95,8 +50,6 @@ export async function* parseChatStream(
 
 function decodeLine(line: string): ChatStreamChunk | null {
   if (!line) return null;
-  // SSE comment/keepalive lines start with ':' and carry no data.
-  if (line.startsWith(':')) return null;
   let payload = line;
   if (line.startsWith('data:')) {
     payload = line.slice(5).trim();
@@ -105,9 +58,7 @@ function decodeLine(line: string): ChatStreamChunk | null {
   try {
     return JSON.parse(payload) as ChatStreamChunk;
   } catch {
-    // Not valid JSON. Could be a genuine oddity from the server; the caller
-    // decides (via sawValidChunk bookkeeping) whether an all-garbage stream
-    // should be reported as an error.
+    // Ignore non-JSON keepalive lines (`:` comments, blank SSE separators).
     return null;
   }
 }

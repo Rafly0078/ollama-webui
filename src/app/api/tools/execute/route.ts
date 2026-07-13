@@ -76,11 +76,24 @@ export async function POST(request: Request): Promise<Response> {
           upsert: false,
         });
 
-      if (!uploadErr) {
-        // Get signed URL
-        const { data: urlData } = await supabase.storage
+      if (uploadErr) {
+        // Previously swallowed silently — the artifact would fall back to
+        // ephemeral (data URL) with no way to tell why. Log it so a missing
+        // bucket / RLS misconfiguration is actually visible.
+        console.error(`[tools/execute] Storage upload failed for ${storagePath}:`, uploadErr.message);
+      } else {
+        // Signed URL — long-lived (7 days) rather than 1 hour, since it gets
+        // stored in chat history and read back much later. ArtifactPanel
+        // additionally re-signs on load (see /api/artifacts/refresh), so
+        // this is a safety margin, not the only line of defense.
+        const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
+        const { data: urlData, error: signErr } = await supabase.storage
           .from(bucket)
-          .createSignedUrl(storagePath, 3600);
+          .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+
+        if (signErr) {
+          console.error(`[tools/execute] Failed to sign URL for ${storagePath}:`, signErr.message);
+        }
 
         artifact = {
           ...artifact,
@@ -91,7 +104,7 @@ export async function POST(request: Request): Promise<Response> {
         };
 
         // Persist artifact metadata to database
-        await supabase.from('artifacts').insert({
+        const { error: artifactInsertErr } = await supabase.from('artifacts').insert({
           id: artifactId,
           user_id: userId,
           conversation_id: body.conversationId ?? null,
@@ -105,9 +118,12 @@ export async function POST(request: Request): Promise<Response> {
           version: 1,
           metadata: {},
         });
+        if (artifactInsertErr) {
+          console.error('[tools/execute] Failed to insert artifacts row:', artifactInsertErr.message);
+        }
 
         // Create download record
-        await supabase.from('downloads').insert({
+        const { error: downloadInsertErr } = await supabase.from('downloads').insert({
           id: uid(),
           user_id: userId,
           artifact_id: artifactId,
@@ -118,7 +134,20 @@ export async function POST(request: Request): Promise<Response> {
           bucket,
           storage_path: storagePath,
         });
+        if (downloadInsertErr) {
+          console.error('[tools/execute] Failed to insert downloads row:', downloadInsertErr.message);
+        }
       }
+    } else if (supabase && userId === 'guest') {
+      // Supabase IS configured, but there's no authenticated session on this
+      // request — this is the most common reason files "disappear": nothing
+      // ever gets uploaded, and the fallback data: URL below only lives
+      // inside this one chat message in localStorage.
+      console.warn(
+        '[tools/execute] No authenticated Supabase session — artifact will be ephemeral ' +
+          '(embedded as a data: URL, not saved to Storage). Sign in (or enable anonymous ' +
+          'sessions) for files to persist across reloads.',
+      );
     }
 
     // For guest mode or if storage upload failed, return as data URL

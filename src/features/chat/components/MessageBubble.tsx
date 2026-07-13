@@ -20,7 +20,6 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { TypingIndicator } from './TypingIndicator';
 import { formatDuration, formatNumber } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
-import { detectArtifacts } from '@/lib/tools/detect';
 
 export interface MessageActions {
   onCopy: (text: string) => void;
@@ -71,10 +70,6 @@ export const MessageBubble = memo(function MessageBubble({
 
   const showActions = !message.streaming && !editing;
   const canContinue = !isUser && isLast && !generating && !message.error && message.content.length > 0;
-  // Once a directive block is complete it's about to be swapped for a real
-  // ArtifactCard by processArtifacts(); hide the raw JSON in the meantime
-  // instead of letting it flash on screen while still streaming in.
-  const displayContent = isUser ? message.content : detectArtifacts(message.content).cleaned;
 
   return (
     <m.div
@@ -174,9 +169,9 @@ export const MessageBubble = memo(function MessageBubble({
           <div className="whitespace-pre-wrap break-words text-[0.95rem] leading-7 text-content">
             {message.content}
           </div>
-        ) : displayContent ? (
+        ) : message.content ? (
           <div className={message.streaming ? 'streaming-caret' : undefined}>
-            <Markdown content={displayContent} />
+            <Markdown content={message.content} streaming={message.streaming} />
           </div>
         ) : message.streaming ? (
           <div className="py-1">

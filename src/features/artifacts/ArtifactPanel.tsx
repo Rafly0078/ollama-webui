@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import {
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
   Download,
@@ -79,6 +80,12 @@ function ArtifactCard({ artifact, onDelete }: { artifact: Artifact; onDelete?: (
           <p className="text-[0.7rem] text-content-subtle">
             {artifact.kind.toUpperCase()} · {formatSize(artifact.size)}
           </p>
+          {artifact.ephemeral && (
+            <p className="mt-0.5 flex items-center gap-1 text-[0.7rem] text-amber-600">
+              <AlertTriangle className="h-3 w-3 shrink-0" />
+              Belum tersimpan ke cloud — unduh sekarang, hilang setelah halaman ditutup.
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover/art:opacity-100">
           {isPreviewable && artifact.url && (
@@ -169,6 +176,43 @@ function ArtifactCard({ artifact, onDelete }: { artifact: Artifact; onDelete?: (
  */
 export function ArtifactPanel({ artifacts, onDelete }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [freshUrls, setFreshUrls] = useState<Record<string, string>>({});
+
+  // Persisted artifacts carry a signed URL that expires. Re-sign on every
+  // render of this panel (i.e. every time the conversation is opened) so a
+  // file generated days or weeks ago still downloads instead of 403ing.
+  // Ephemeral (data: URL) artifacts are skipped — there's nothing in
+  // Storage to re-sign for those.
+  const refreshKey = artifacts
+    .filter((a) => !a.ephemeral && a.bucket && a.storagePath)
+    .map((a) => a.id)
+    .join(',');
+
+  useEffect(() => {
+    if (!refreshKey) return;
+    let cancelled = false;
+    for (const a of artifacts) {
+      if (a.ephemeral || !a.bucket || !a.storagePath) continue;
+      fetch('/api/artifacts/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bucket: a.bucket, storagePath: a.storagePath }),
+      })
+        .then((res) => (res.ok ? (res.json() as Promise<{ url?: string }>) : null))
+        .then((data) => {
+          if (!cancelled && data?.url) {
+            setFreshUrls((prev) => ({ ...prev, [a.id]: data.url! }));
+          }
+        })
+        .catch(() => {
+          /* keep whatever URL we already have — better than nothing */
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   if (artifacts.length === 0) return null;
 
@@ -201,7 +245,11 @@ export function ArtifactPanel({ artifacts, onDelete }: Props) {
           >
             <div className="space-y-2 px-4 pb-3">
               {artifacts.map((a) => (
-                <ArtifactCard key={a.id} artifact={a} onDelete={onDelete} />
+                <ArtifactCard
+                  key={a.id}
+                  artifact={freshUrls[a.id] ? { ...a, url: freshUrls[a.id] } : a}
+                  onDelete={onDelete}
+                />
               ))}
             </div>
           </m.div>
