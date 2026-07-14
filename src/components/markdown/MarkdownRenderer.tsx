@@ -15,6 +15,7 @@ import rehypeHighlight from 'rehype-highlight';
 import { AlertTriangle } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { Mermaid } from './Mermaid';
+import { PatchBlock } from './PatchBlock';
 
 /** Minimal structural type for a hast node — avoids a hard dep on `hast` types. */
 interface HastNode {
@@ -93,6 +94,9 @@ function makeComponents(streaming: boolean): Components {
       }
       if (lang === 'artifact') {
         return <ArtifactDirectiveNotice raw={raw} streaming={streaming} />;
+      }
+      if (lang === 'codepatch') {
+        return <PatchBlock raw={raw} streaming={streaming} />;
       }
 
       return (

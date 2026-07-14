@@ -1,5 +1,6 @@
 import type { GenerationParams, Message } from '@/types';
 import { TOOL_INSTRUCTIONS } from '@/lib/tools/prompt';
+import { PATCH_INSTRUCTIONS } from '@/lib/tools/patch-prompt';
 
 /** Wire types matching an Ollama-compatible proxy. */
 
@@ -82,7 +83,9 @@ export function toApiMessages(
   // TOOL_INSTRUCTIONS is always included — even conversations created before
   // this existed (whose stored systemPrompt predates it) still get a model
   // that knows the artifact directive format.
-  const combinedSystem = [systemPrompt.trim(), TOOL_INSTRUCTIONS].filter(Boolean).join('\n\n');
+  const combinedSystem = [systemPrompt.trim(), TOOL_INSTRUCTIONS, PATCH_INSTRUCTIONS]
+    .filter(Boolean)
+    .join('\n\n');
   if (combinedSystem) out.push({ role: 'system', content: combinedSystem });
 
   const lastUserIdx = messages.map((m) => m.role).lastIndexOf('user');

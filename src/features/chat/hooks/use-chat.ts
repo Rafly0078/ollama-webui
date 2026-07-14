@@ -9,6 +9,7 @@ import { streamChat } from '@/lib/api/client';
 import { toApiMessages, toApiOptions, type ChatStreamChunk } from '@/lib/api/types';
 import { uid } from '@/lib/utils/id';
 import { detectArtifacts } from '@/lib/tools/detect';
+import { enrichPatches, extractCodeBlocks } from '@/lib/tools/patch';
 import type { Artifact } from '@/lib/tools/types';
 import { searchWeb } from '@/lib/search/client';
 import { formatSearchContext, toSources } from '@/lib/search/format';
@@ -95,6 +96,37 @@ export function useChat(conversationId: string | null) {
     [store],
   );
 
+  /**
+   * Detect codepatch directives in a completed message and resolve them against
+   * the code the assistant wrote earlier in this conversation. Each fence is
+   * rewritten in place to embed the fully-patched source, so PatchBlock can
+   * render a diff + copyable corrected code without needing conversation
+   * context, and it survives reload (content is persisted; metadata is not).
+   */
+  const processPatches = useCallback(
+    (convoId: string, messageId: string, content: string) => {
+      if (!content.includes('```codepatch')) return;
+      const convo = store.getState().conversations.find((c) => c.id === convoId);
+      if (!convo) return;
+
+      // Candidate sources: code blocks from all *earlier* messages, newest
+      // first, so a hunk resolves against the most recent version of the code.
+      const idx = convo.messages.findIndex((m) => m.id === messageId);
+      const priorCode: string[] = [];
+      for (let i = idx - 1; i >= 0; i--) {
+        for (const block of extractCodeBlocks(convo.messages[i]!.content)) {
+          priorCode.push(block.code);
+        }
+      }
+
+      const { content: enriched, applied } = enrichPatches(content, priorCode);
+      if (applied && enriched !== content) {
+        store.getState().updateMessage(convoId, messageId, { content: enriched });
+      }
+    },
+    [store],
+  );
+
   const stop = useCallback(() => {
     stopActiveGeneration();
   }, []);
@@ -163,6 +195,8 @@ export function useChat(conversationId: string | null) {
               });
               // Detect and execute artifact directives after streaming completes
               void processArtifacts(convoId, assistantId, finalContent);
+              // Resolve any targeted code-patch directives against earlier code.
+              processPatches(convoId, assistantId, finalContent);
             },
           },
           controller.signal,
@@ -206,7 +240,7 @@ export function useChat(conversationId: string | null) {
         store.getState().setGenerating(null);
       }
     },
-    [store, processArtifacts],
+    [store, processArtifacts, processPatches],
   );
 
   const send = useCallback(
