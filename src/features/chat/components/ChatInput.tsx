@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { ArrowUp, FileText, Globe, Loader2, Paperclip, Plus, Square, X, Check, Command } from 'lucide-react';
-import type { Attachment } from '@/types';
+import { ArrowUp, Brain, FileText, Globe, Loader2, Paperclip, Plus, Square, X, Check, Command, ChevronDown } from 'lucide-react';
+import type { Attachment, ThinkingConfig, ThinkingEffort } from '@/types';
 import { fileToAttachment } from '@/lib/utils/files';
 import { estimateTokens } from '@/lib/utils/format';
 import { SLASH_COMMANDS } from '@/lib/store/defaults';
@@ -21,6 +21,12 @@ interface Props {
   onSlashCommand: (command: string) => void;
   visionCapable?: boolean;
   conversationId?: string | null;
+  /** Extended thinking configuration for this conversation. */
+  thinking: ThinkingConfig;
+  /** Whether the current model is known to not support thinking. */
+  thinkingUnsupported: boolean;
+  /** Update the thinking config (toggle on/off, change effort). */
+  onThinkingChange: (patch: Partial<ThinkingConfig>) => void;
 }
 
 const MAX_TEXTAREA_PX = 220;
@@ -33,6 +39,9 @@ export function ChatInput({
   onSlashCommand,
   visionCapable,
   conversationId,
+  thinking,
+  thinkingUnsupported,
+  onThinkingChange,
 }: Props) {
   const [docEditOpen, setDocEditOpen] = useState(false);
   const [value, setValue] = useState('');
@@ -41,22 +50,25 @@ export function ChatInput({
   const [busy, setBusy] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [effortOpen, setEffortOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const effortRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
   const { toast } = useToast();
   const sendOnEnter = useSettings((s) => s.sendOnEnter);
   const showTokenCounter = useSettings((s) => s.showTokenCounter);
 
-  // Close the tools menu on outside click or Escape.
+  // Close the tools menu and effort popover on outside click or Escape.
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen && !effortOpen) return;
     const onDown = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (menuOpen && menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (effortOpen && effortRef.current && !effortRef.current.contains(e.target as Node)) setEffortOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setMenuOpen(false);
+      if (e.key === 'Escape') { setMenuOpen(false); setEffortOpen(false); }
     };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);
@@ -64,7 +76,7 @@ export function ChatInput({
       document.removeEventListener('mousedown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [menuOpen]);
+  }, [menuOpen, effortOpen]);
 
   const slashOpen = value.startsWith('/') && !value.includes(' ');
   const slashMatches = slashOpen
@@ -382,6 +394,92 @@ export function ChatInput({
             className="scrollbar-thin max-h-[220px] flex-1 resize-none bg-transparent px-1 py-2.5 text-[0.95rem] leading-6 text-content outline-none placeholder:text-content-subtle disabled:opacity-50"
           />
 
+          {/* Thinking toggle + effort selector */}
+          <div ref={effortRef} className="relative shrink-0">
+            <Tooltip
+              label={
+                thinkingUnsupported
+                  ? "This model doesn't support thinking"
+                  : thinking.enabled
+                    ? `Thinking: ${thinking.effort}`
+                    : 'Enable extended thinking'
+              }
+            >
+              <button
+                onClick={() => {
+                  if (thinkingUnsupported) return;
+                  if (!thinking.enabled) {
+                    onThinkingChange({ enabled: true });
+                  } else {
+                    setEffortOpen((v) => !v);
+                  }
+                }}
+                disabled={disabled || thinkingUnsupported}
+                aria-label="Toggle extended thinking"
+                aria-haspopup="menu"
+                aria-expanded={effortOpen}
+                className={cn(
+                  'focus-ring flex h-11 items-center justify-center gap-1 rounded-2xl px-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+                  thinking.enabled
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-content-muted hover:bg-border/10 hover:text-content',
+                )}
+              >
+                <Brain className="h-5 w-5" />
+                {thinking.enabled && (
+                  <>
+                    <span className="text-xs font-medium capitalize">{thinking.effort}</span>
+                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', effortOpen && 'rotate-180')} />
+                  </>
+                )}
+              </button>
+            </Tooltip>
+
+            <AnimatePresence>
+              {effortOpen && thinking.enabled && !thinkingUnsupported && (
+                <m.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.14 }}
+                  role="menu"
+                  className="popover absolute bottom-full right-0 z-30 mb-2 w-48 overflow-hidden rounded-2xl p-1.5 shadow-card"
+                >
+                  <div className="px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-wide text-content-subtle">
+                    Thinking effort
+                  </div>
+                  {(['minimal', 'default', 'extended'] as ThinkingEffort[]).map((effort) => (
+                    <button
+                      key={effort}
+                      role="menuitemradio"
+                      aria-checked={thinking.effort === effort}
+                      onClick={() => {
+                        onThinkingChange({ effort });
+                        setEffortOpen(false);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-content transition-colors hover:bg-border/10"
+                    >
+                      <span className="flex-1 capitalize">{effort}</span>
+                      {thinking.effort === effort && <Check className="h-4 w-4 text-accent" />}
+                    </button>
+                  ))}
+                  <div className="my-1 h-px bg-border/10" />
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      onThinkingChange({ enabled: false });
+                      setEffortOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-content transition-colors hover:bg-border/10"
+                  >
+                    <X className="h-4 w-4 text-content-muted" />
+                    <span className="flex-1">Turn off thinking</span>
+                  </button>
+                </m.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {generating ? (
             <Tooltip label="Stop generating (Esc)">
               <button
@@ -410,6 +508,11 @@ export function ChatInput({
           {webSearch && (
             <span className="inline-flex items-center gap-1 font-medium text-accent">
               <Globe className="h-3 w-3" /> Web search
+            </span>
+          )}
+          {thinking.enabled && (
+            <span className="inline-flex items-center gap-1 font-medium text-accent">
+              <Brain className="h-3 w-3" /> Thinking · {thinking.effort}
             </span>
           )}
           <span>{visionCapable ? 'Vision model — images supported' : 'Text model'}</span>

@@ -5,6 +5,15 @@
 
 export type Role = 'system' | 'user' | 'assistant';
 
+/** Effort level for extended thinking (Ollama `think` parameter). */
+export type ThinkingEffort = 'minimal' | 'default' | 'extended';
+
+/** Per-conversation thinking configuration. */
+export interface ThinkingConfig {
+  enabled: boolean;
+  effort: ThinkingEffort;
+}
+
 export interface Attachment {
   id: string;
   /** Original filename. */
@@ -68,6 +77,8 @@ export interface Conversation {
   model: string;
   systemPrompt: string;
   params: GenerationParams;
+  /** Extended thinking configuration (Ollama `think` parameter). */
+  thinking: ThinkingConfig;
   pinned: boolean;
   createdAt: number;
   updatedAt: number;

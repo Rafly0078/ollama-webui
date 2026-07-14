@@ -14,6 +14,8 @@ export interface ChatRequest {
   model: string;
   messages: ApiChatMessage[];
   stream?: boolean;
+  /** Ollama `think` flag — enables extended reasoning for capable models. */
+  think?: boolean;
   options?: {
     temperature?: number;
     top_p?: number;
@@ -21,6 +23,8 @@ export interface ChatRequest {
     repeat_penalty?: number;
     num_ctx?: number;
     num_predict?: number;
+    /** Thinking budget mapped from ThinkingEffort (0=minimal, 1=default, 2=extended). */
+    think_budget?: number;
   };
 }
 

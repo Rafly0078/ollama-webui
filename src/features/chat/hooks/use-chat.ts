@@ -3,6 +3,8 @@
 import { useCallback, useRef } from 'react';
 import type { Attachment, Message } from '@/types';
 import { useChatStore } from '@/lib/store/chat-store';
+import { useThinkingStore } from '@/lib/store/thinking-store';
+import { THINK_BUDGET_MAP } from '@/lib/store/defaults';
 import { ApiError } from '@/lib/api/config';
 import { streamChat } from '@/lib/api/client';
 import { toApiMessages, toApiOptions, type ChatStreamChunk } from '@/lib/api/types';
@@ -137,12 +139,21 @@ export function useChat(conversationId: string | null) {
       const assistantMsg = convo.messages[idx];
       const searchContext =
         opts?.searchContext ?? (assistantMsg?.metadata?.searchContext as string | undefined);
+
+      // Build request — include thinking params when enabled for this conversation.
+      const options = toApiOptions(convo.params);
+      const thinkingEnabled = convo.thinking?.enabled === true;
+      const thinkPayload = thinkingEnabled
+        ? { think: true, options: { ...options, think_budget: THINK_BUDGET_MAP[convo.thinking.effort] } }
+        : {};
+
       try {
         await streamChat(
           {
             model: convo.model,
             messages: toApiMessages(history, convo.systemPrompt, searchContext),
-            options: toApiOptions(convo.params),
+            ...thinkPayload,
+            ...(thinkingEnabled ? {} : { options }),
           },
           {
             onDelta: (delta) => store.getState().appendToMessage(convoId, assistantId, delta),
@@ -171,6 +182,22 @@ export function useChat(conversationId: string | null) {
             metrics: cur?.content ? { responseTimeMs: Date.now() - startedAt } : undefined,
           });
         } else {
+          // If the model returned an error while thinking was enabled, it
+          // likely doesn't support the `think` parameter. Mark it so the UI
+          // can disable the toggle and show a tooltip.
+          if (thinkingEnabled) {
+            const msg = apiErr.message.toLowerCase();
+            if (
+              msg.includes('think') ||
+              msg.includes('unsupported') ||
+              msg.includes('unrecognized') ||
+              msg.includes('unknown option') ||
+              msg.includes('invalid') ||
+              apiErr.status === 400
+            ) {
+              useThinkingStore.getState().markUnsupported(convo.model);
+            }
+          }
           store.getState().updateMessage(convoId, assistantId, {
             streaming: false,
             error: apiErr.userMessage,

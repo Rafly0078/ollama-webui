@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { Conversation } from '@/types';
 import { useChatStore } from '@/lib/store/chat-store';
+import { useThinkingStore } from '@/lib/store/thinking-store';
 import { useChat } from '../hooks/use-chat';
 import { useModels } from '@/features/models/use-models';
 import { TopBar } from './TopBar';
@@ -26,9 +27,11 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
   const deleteMessage = useChatStore((s) => s.deleteMessage);
   const setSystemPrompt = useChatStore((s) => s.setConversationSystemPrompt);
   const setParams = useChatStore((s) => s.setConversationParams);
+  const setThinking = useChatStore((s) => s.setConversationThinking);
   const clearMessages = useChatStore((s) => s.clearMessages);
   const { models } = useModels();
   const { toast } = useToast();
+  const thinkingUnsupported = useThinkingStore((s) => s.unsupported.has(conversation.model));
 
   const { send, stop, regenerate, continueGeneration, editUserMessage } = useChat(conversation.id);
 
@@ -113,6 +116,9 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
         onSlashCommand={handleSlash}
         visionCapable={visionCapable}
         conversationId={conversation.id}
+        thinking={conversation.thinking ?? { enabled: false, effort: 'default' }}
+        thinkingUnsupported={thinkingUnsupported}
+        onThinkingChange={(patch) => setThinking(conversation.id, patch)}
       />
 
       <ParamsPanel

@@ -1,4 +1,4 @@
-import type { GenerationParams, PromptPreset, SlashCommand } from '@/types';
+import type { GenerationParams, PromptPreset, SlashCommand, ThinkingConfig, ThinkingEffort } from '@/types';
 import { uid } from '@/lib/utils/id';
 
 export const DEFAULT_PARAMS: GenerationParams = {
@@ -8,6 +8,18 @@ export const DEFAULT_PARAMS: GenerationParams = {
   repeatPenalty: 1.1,
   contextLength: 8192,
   maxTokens: -1,
+};
+
+export const DEFAULT_THINKING: ThinkingConfig = {
+  enabled: false,
+  effort: 'default',
+};
+
+/** Map ThinkingEffort to the numeric think_budget sent in the API options. */
+export const THINK_BUDGET_MAP: Record<ThinkingEffort, number> = {
+  minimal: 0,
+  default: 1,
+  extended: 2,
 };
 
 export const DEFAULT_SYSTEM_PROMPT =

@@ -3,8 +3,8 @@
  * the rest of the app only ever deals with the domain types in @/types.
  */
 
-import type { Conversation, GenerationParams, Message, Role } from '@/types';
-import { DEFAULT_PARAMS } from '@/lib/store/defaults';
+import type { Conversation, GenerationParams, Message, Role, ThinkingConfig } from '@/types';
+import { DEFAULT_PARAMS, DEFAULT_THINKING } from '@/lib/store/defaults';
 import type { ArtifactKind, Artifact } from '@/lib/tools/types';
 import type { ArtifactRow, ConversationRow, MessageRow } from '@/lib/supabase/types';
 
@@ -13,6 +13,9 @@ const msToIso = (ms: number): string => new Date(ms).toISOString();
 
 export function rowToConversation(row: ConversationRow, messages: Message[]): Conversation {
   const params = { ...DEFAULT_PARAMS, ...(row.params as Partial<GenerationParams>) };
+  // DB rows don't have a thinking column yet — default to disabled so
+  // cloud-loaded conversations behave the same as fresh local ones.
+  const thinking: ThinkingConfig = { ...DEFAULT_THINKING };
   return {
     id: row.id,
     title: row.title,
@@ -20,6 +23,7 @@ export function rowToConversation(row: ConversationRow, messages: Message[]): Co
     model: row.model,
     systemPrompt: row.system_prompt,
     params,
+    thinking,
     pinned: row.pinned,
     createdAt: isoToMs(row.created_at),
     updatedAt: isoToMs(row.updated_at),

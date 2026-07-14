@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Conversation, GenerationParams, Message } from '@/types';
+import type { Conversation, GenerationParams, Message, ThinkingConfig } from '@/types';
 import { uid } from '@/lib/utils/id';
-import { DEFAULT_PARAMS, DEFAULT_SYSTEM_PROMPT } from './defaults';
+import { DEFAULT_PARAMS, DEFAULT_SYSTEM_PROMPT, DEFAULT_THINKING } from './defaults';
 
 interface ChatState {
   conversations: Conversation[];
@@ -24,6 +24,7 @@ interface ChatState {
   setConversationModel: (id: string, model: string) => void;
   setConversationSystemPrompt: (id: string, prompt: string) => void;
   setConversationParams: (id: string, patch: Partial<GenerationParams>) => void;
+  setConversationThinking: (id: string, patch: Partial<ThinkingConfig>) => void;
 
   addMessage: (convoId: string, msg: Message) => void;
   appendToMessage: (convoId: string, msgId: string, delta: string) => void;
@@ -54,6 +55,7 @@ export function makeConversation(
     model: opts?.model ?? '',
     systemPrompt: opts?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
     params: opts?.params ?? { ...DEFAULT_PARAMS },
+    thinking: { ...DEFAULT_THINKING },
     pinned: false,
     createdAt: now,
     updatedAt: now,
@@ -143,6 +145,13 @@ export const useChatStore = create<ChatState>()(
           ),
         })),
 
+      setConversationThinking: (id, patch) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === id ? touch({ ...c, thinking: { ...c.thinking, ...patch } }) : c,
+          ),
+        })),
+
       addMessage: (convoId, msg) =>
         set((s) => ({
           conversations: s.conversations.map((c) =>
@@ -213,7 +222,19 @@ export const useChatStore = create<ChatState>()(
     {
       name: 'ollama-webui:chats',
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
+      // Migrate v1 conversations (pre-thinking) by adding the default thinking config.
+      migrate: (persisted: unknown, version: number) => {
+        if (!persisted || typeof persisted !== 'object') return persisted;
+        const state = persisted as { conversations?: Conversation[] };
+        if (version < 2 && state.conversations) {
+          state.conversations = state.conversations.map((c) => ({
+            ...c,
+            thinking: c.thinking ?? { ...DEFAULT_THINKING },
+          }));
+        }
+        return state;
+      },
       // Don't persist transient generation state.
       partialize: (s) => ({
         conversations: s.conversations,
