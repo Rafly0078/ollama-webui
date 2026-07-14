@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { ArrowUp, Brain, FileText, Globe, Loader2, Paperclip, Plus, Square, X, Check, Command, ChevronDown } from 'lucide-react';
+import { ArrowUp, Brain, FileText, Globe, Loader2, Paperclip, Plus, Square, X, Check, Command } from 'lucide-react';
 import type { Attachment, ThinkingConfig, ThinkingEffort } from '@/types';
 import { fileToAttachment } from '@/lib/utils/files';
 import { estimateTokens } from '@/lib/utils/format';
@@ -388,7 +388,7 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             placeholder={
-              disabled ? 'Select a model to start chatting…' : 'Message your model…  (/ for commands)'
+              disabled ? 'Select a model to start chatting…' : 'Message...'
             }
             aria-label="Message input"
             className="scrollbar-thin max-h-[220px] flex-1 resize-none bg-transparent px-1 py-2.5 text-[0.95rem] leading-6 text-content outline-none placeholder:text-content-subtle disabled:opacity-50"
@@ -419,18 +419,15 @@ export function ChatInput({
                 aria-haspopup="menu"
                 aria-expanded={effortOpen}
                 className={cn(
-                  'focus-ring flex h-11 items-center justify-center gap-1 rounded-2xl px-2.5 transition-colors disabled:cursor-not-allowed disabled:opacity-40',
+                  'focus-ring relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors disabled:cursor-not-allowed disabled:opacity-40',
                   thinking.enabled
                     ? 'bg-accent/15 text-accent'
                     : 'text-content-muted hover:bg-border/10 hover:text-content',
                 )}
               >
                 <Brain className="h-5 w-5" />
-                {thinking.enabled && (
-                  <>
-                    <span className="text-xs font-medium capitalize">{thinking.effort}</span>
-                    <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', effortOpen && 'rotate-180')} />
-                  </>
+                {thinking.enabled && !effortOpen && (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent ring-2 ring-surface-raised" />
                 )}
               </button>
             </Tooltip>
