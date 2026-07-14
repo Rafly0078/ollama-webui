@@ -14,6 +14,7 @@ import {
   Trash2,
   Upload,
   Sparkles,
+  User,
 } from 'lucide-react';
 import { AmbientBackground } from '@/components/AmbientBackground';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,17 @@ import { cn } from '@/lib/utils/cn';
 import { AccountSection } from '@/features/auth/AccountSection';
 import type { Conversation, PromptPreset } from '@/types';
 
+type SectionId = 'account' | 'appearance' | 'connection' | 'prompt' | 'params' | 'data';
+
+const NAV: { id: SectionId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'account', label: 'Account', icon: User },
+  { id: 'appearance', label: 'Appearance', icon: Palette },
+  { id: 'connection', label: 'Connection', icon: Server },
+  { id: 'prompt', label: 'System prompt', icon: Terminal },
+  { id: 'params', label: 'Generation', icon: Sliders },
+  { id: 'data', label: 'Data & backup', icon: Download },
+];
+
 export default function SettingsPage() {
   const hydrated = useHydrated();
   const s = useSettings();
@@ -42,6 +54,7 @@ export default function SettingsPage() {
   const importConversations = useChatStore((st) => st.importConversations);
   const fileRef = useRef<HTMLInputElement>(null);
   const chatFileRef = useRef<HTMLInputElement>(null);
+  const [active, setActive] = useState<SectionId>('account');
 
   const exportSettings = () => {
     const payload = {
@@ -92,7 +105,7 @@ export default function SettingsPage() {
   return (
     <>
       <AmbientBackground />
-      <div className="mx-auto min-h-[100dvh] w-full max-w-3xl px-4 py-6 sm:py-10">
+      <div className="mx-auto min-h-[100dvh] w-full max-w-5xl px-4 py-6 sm:py-10">
         <div className="mb-8 flex items-center gap-3">
           <Link href="/" className="btn-ghost h-10 w-10 rounded-xl" aria-label="Back to chat">
             <ArrowLeft className="h-5 w-5" />
@@ -103,10 +116,41 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-8">
+          {/* Section nav: sticky sidebar on desktop, horizontal scroller on mobile */}
+          <nav className="md:sticky md:top-10 md:w-52 md:shrink-0">
+            <ul className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 md:flex-col md:overflow-visible md:pb-0">
+              {NAV.map((item) => {
+                const Icon = item.icon;
+                const isActive = active === item.id;
+                return (
+                  <li key={item.id} className="shrink-0 md:shrink">
+                    <button
+                      onClick={() => setActive(item.id)}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'flex w-full items-center gap-2.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-accent/10 text-content'
+                          : 'text-content-muted hover:bg-border/5 hover:text-content',
+                      )}
+                    >
+                      <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-accent')} />
+                      {item.label}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+
+          {/* Active section */}
+          <div className="min-w-0 flex-1">
         {/* Account */}
-        <AccountSection />
+        {active === 'account' && <AccountSection />}
 
         {/* Appearance */}
+        {active === 'appearance' && (
         <Section icon={Palette} title="Appearance">
           <Field label="Theme">
             <div className="flex gap-2">
@@ -163,8 +207,10 @@ export default function SettingsPage() {
             onChange={() => s.toggle('showTokenCounter')}
           />
         </Section>
+        )}
 
         {/* Connection */}
+        {active === 'connection' && (
         <Section icon={Server} title="Connection">
           <Field
             label="Connection mode"
@@ -238,8 +284,10 @@ export default function SettingsPage() {
             </select>
           </Field>
         </Section>
+        )}
 
         {/* System prompt */}
+        {active === 'prompt' && (
         <Section icon={Terminal} title="Default system prompt">
           <textarea
             value={s.defaultSystemPrompt}
@@ -249,8 +297,10 @@ export default function SettingsPage() {
           />
           <PresetManager presets={s.presets} />
         </Section>
+        )}
 
         {/* Default generation params */}
+        {active === 'params' && (
         <Section icon={Sliders} title="Default generation parameters">
           <div className="space-y-6">
             <Slider label="Temperature" value={s.defaultParams.temperature} min={0} max={2} step={0.05} onChange={(v) => s.setDefaultParams({ temperature: v })} format={(v) => v.toFixed(2)} />
@@ -261,8 +311,10 @@ export default function SettingsPage() {
             <Slider label="Max tokens" value={s.defaultParams.maxTokens} min={-1} max={8192} step={1} onChange={(v) => s.setDefaultParams({ maxTokens: v })} />
           </div>
         </Section>
+        )}
 
         {/* Data */}
+        {active === 'data' && (
         <Section icon={Download} title="Data & backup">
           <div className="grid gap-3 sm:grid-cols-2">
             <Button variant="surface" onClick={exportSettings}>
@@ -315,6 +367,9 @@ export default function SettingsPage() {
             </Button>
           </div>
         </Section>
+        )}
+          </div>
+        </div>
 
         <div className="flex items-center justify-center gap-2 py-8 text-xs text-content-subtle">
           <Sparkles className="h-3.5 w-3.5 text-accent" />
