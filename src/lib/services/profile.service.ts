@@ -20,6 +20,38 @@ export async function getProfile(): Promise<ProfileRow | null> {
   return data;
 }
 
+/**
+ * Guarantee a profile row exists for the signed-in user, creating it from the
+ * auth metadata if missing. The DB trigger (handle_new_user) only fires once,
+ * on the initial auth.users INSERT — so if a profile row is ever deleted, a
+ * later sign-in reuses the same auth.users row and never re-triggers it,
+ * leaving the user with no profile. Calling this on every sign-in makes the
+ * app self-heal instead of depending solely on that one-shot trigger.
+ * Guests (anonymous users) are skipped.
+ */
+export async function ensureProfile(user: User): Promise<void> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase || user.is_anonymous) return;
+
+  const meta = user.user_metadata as
+    | { full_name?: string; name?: string; avatar_url?: string; picture?: string }
+    | undefined;
+
+  const { error } = await supabase.from('profiles').upsert(
+    {
+      id: user.id,
+      email: user.email ?? null,
+      display_name: meta?.full_name || meta?.name || null,
+      avatar_url: meta?.avatar_url || meta?.picture || null,
+      is_guest: false,
+    },
+    // Don't clobber a display_name/avatar the user has since customized —
+    // only fill the row when it's genuinely absent.
+    { onConflict: 'id', ignoreDuplicates: true },
+  );
+  if (error) throw new Error(error.message);
+}
+
 export async function updateProfile(patch: Partial<Pick<ProfileRow, 'display_name' | 'avatar_url'>>): Promise<void> {
   const supabase = getSupabaseBrowser();
   if (!supabase) return;
