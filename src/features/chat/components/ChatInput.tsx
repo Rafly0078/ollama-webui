@@ -388,7 +388,7 @@ export function ChatInput({
             disabled={disabled}
             rows={1}
             placeholder={
-              disabled ? 'Select a model to start chatting…' : 'Message...'
+              disabled ? 'Select model to start' : 'Message...'
             }
             aria-label="Message input"
             className="scrollbar-thin max-h-[220px] flex-1 resize-none bg-transparent px-1 py-2.5 text-[0.95rem] leading-6 text-content outline-none placeholder:text-content-subtle disabled:opacity-50"
