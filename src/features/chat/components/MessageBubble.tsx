@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { m } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import {
   AlertCircle,
   Check,
@@ -14,6 +14,8 @@ import {
   CornerDownRight,
   Globe,
   X,
+  Brain,
+  ChevronDown,
 } from 'lucide-react';
 import type { Message } from '@/types';
 import type { Source } from '@/lib/search/types';
@@ -156,6 +158,16 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
+        {/* Reasoning: the model's thinking stream, shown in a collapsible panel
+            that auto-expands while thinking and collapses once the answer starts. */}
+        {!isUser && message.reasoning && (
+          <ReasoningPanel
+            reasoning={message.reasoning}
+            thinking={message.streaming === true}
+            hasContent={message.content.length > 0}
+          />
+        )}
+
         {/* Content */}
         {editing ? (
           <div className="space-y-2">
@@ -279,6 +291,61 @@ export const MessageBubble = memo(function MessageBubble({
     </m.div>
   );
 });
+
+/**
+ * Collapsible panel showing the model's reasoning stream. Auto-expands while
+ * the model is still thinking (content hasn't started), then auto-collapses
+ * once the answer begins — matching the "show the thinking, then tuck it away"
+ * pattern from other chat UIs. A manual toggle overrides the auto behavior.
+ */
+function ReasoningPanel({ reasoning, thinking, hasContent }: {
+  reasoning: string;
+  thinking: boolean;
+  hasContent: boolean;
+}) {
+  // Live reasoning (thinking, no answer yet) starts open. Once the answer
+  // arrives or streaming ends, default to collapsed. `manual` pins the state
+  // once the user clicks, so auto-collapse doesn't yank it shut mid-read.
+  const liveThinking = thinking && !hasContent;
+  const [manual, setManual] = useState<boolean | null>(null);
+  const open = manual ?? liveThinking;
+
+  return (
+    <div className="mb-2 overflow-hidden rounded-xl border border-border/60 bg-border/5">
+      <button
+        onClick={() => setManual(!open)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-content-muted transition-colors hover:bg-border/10"
+      >
+        <Brain className={cn('h-3.5 w-3.5 shrink-0 text-accent', liveThinking && 'animate-pulse')} />
+        <span className="flex-1">{liveThinking ? 'Thinking…' : 'Thought process'}</span>
+        <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <m.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+          >
+            <div
+              className={cn(
+                'whitespace-pre-wrap break-words border-t border-border/60 px-3 py-2 text-[0.82rem] leading-6 text-content-subtle',
+                // While thinking is live, cap the height so a long reasoning
+                // stream stays contained instead of shoving the answer offscreen.
+                liveThinking && 'max-h-64 overflow-y-auto',
+              )}
+            >
+              {reasoning}
+              {liveThinking && <span className="streaming-caret" />}
+            </div>
+          </m.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function ActionBtn({
   label,

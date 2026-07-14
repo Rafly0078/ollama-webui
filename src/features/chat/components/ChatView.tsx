@@ -116,7 +116,7 @@ export function ChatView({ conversation, onToggleSidebar }: Props) {
         onSlashCommand={handleSlash}
         visionCapable={visionCapable}
         conversationId={conversation.id}
-        thinking={conversation.thinking ?? { enabled: false, effort: 'default' }}
+        thinking={conversation.thinking ?? { enabled: false, effort: 'medium' }}
         thinkingUnsupported={thinkingUnsupported}
         onThinkingChange={(patch) => setThinking(conversation.id, patch)}
       />

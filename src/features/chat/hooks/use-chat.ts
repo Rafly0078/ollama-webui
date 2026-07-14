@@ -4,7 +4,6 @@ import { useCallback, useRef } from 'react';
 import type { Attachment, Message } from '@/types';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useThinkingStore } from '@/lib/store/thinking-store';
-import { THINK_BUDGET_MAP } from '@/lib/store/defaults';
 import { ApiError } from '@/lib/api/config';
 import { streamChat } from '@/lib/api/client';
 import { toApiMessages, toApiOptions, type ChatStreamChunk } from '@/lib/api/types';
@@ -140,23 +139,22 @@ export function useChat(conversationId: string | null) {
       const searchContext =
         opts?.searchContext ?? (assistantMsg?.metadata?.searchContext as string | undefined);
 
-      // Build request — include thinking params when enabled for this conversation.
+      // Build request — the effort level is sent verbatim as Ollama's `think`
+      // parameter ("low" | "medium" | "high" | "max") when thinking is enabled.
       const options = toApiOptions(convo.params);
       const thinkingEnabled = convo.thinking?.enabled === true;
-      const thinkPayload = thinkingEnabled
-        ? { think: true, options: { ...options, think_budget: THINK_BUDGET_MAP[convo.thinking.effort] } }
-        : {};
 
       try {
         await streamChat(
           {
             model: convo.model,
             messages: toApiMessages(history, convo.systemPrompt, searchContext),
-            ...thinkPayload,
-            ...(thinkingEnabled ? {} : { options }),
+            options,
+            ...(thinkingEnabled ? { think: convo.thinking.effort } : {}),
           },
           {
             onDelta: (delta) => store.getState().appendToMessage(convoId, assistantId, delta),
+            onThinking: (delta) => store.getState().appendReasoning(convoId, assistantId, delta),
             onDone: (final) => {
               const finalContent = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((m) => m.id === assistantId)?.content ?? '';
               store.getState().updateMessage(convoId, assistantId, {
@@ -280,9 +278,11 @@ export function useChat(conversationId: string | null) {
     async (assistantId: string) => {
       if (!conversationId) return;
       const s = store.getState();
-      // Reset the assistant message content and re-stream.
+      // Reset the assistant message content and re-stream. Clear reasoning too
+      // so a regenerated response doesn't append onto the prior attempt's.
       s.updateMessage(conversationId, assistantId, {
         content: '',
+        reasoning: undefined,
         error: undefined,
         streaming: true,
         metrics: undefined,

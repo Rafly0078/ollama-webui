@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import { ArrowUp, Brain, FileText, Globe, Loader2, Paperclip, Plus, Square, X, Check, Command } from 'lucide-react';
-import type { Attachment, ThinkingConfig, ThinkingEffort } from '@/types';
+import type { Attachment, ThinkingConfig } from '@/types';
 import { fileToAttachment } from '@/lib/utils/files';
 import { estimateTokens } from '@/lib/utils/format';
-import { SLASH_COMMANDS } from '@/lib/store/defaults';
+import { SLASH_COMMANDS, THINKING_EFFORTS } from '@/lib/store/defaults';
 import { useSettings } from '@/lib/store/settings-store';
 import { useToast } from '@/components/ui/toast';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -445,7 +445,7 @@ export function ChatInput({
                   <div className="px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-wide text-content-subtle">
                     Thinking effort
                   </div>
-                  {(['minimal', 'default', 'extended'] as ThinkingEffort[]).map((effort) => (
+                  {THINKING_EFFORTS.map((effort) => (
                     <button
                       key={effort}
                       role="menuitemradio"

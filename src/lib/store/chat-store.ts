@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Conversation, GenerationParams, Message, ThinkingConfig } from '@/types';
+import type { Conversation, GenerationParams, Message, ThinkingConfig, ThinkingEffort } from '@/types';
 import { uid } from '@/lib/utils/id';
 import { DEFAULT_PARAMS, DEFAULT_SYSTEM_PROMPT, DEFAULT_THINKING } from './defaults';
 
@@ -28,6 +28,8 @@ interface ChatState {
 
   addMessage: (convoId: string, msg: Message) => void;
   appendToMessage: (convoId: string, msgId: string, delta: string) => void;
+  /** Append a reasoning delta to a message's `reasoning` field. */
+  appendReasoning: (convoId: string, msgId: string, delta: string) => void;
   updateMessage: (convoId: string, msgId: string, patch: Partial<Message>) => void;
   deleteMessage: (convoId: string, msgId: string) => void;
   /** Remove a message and everything after it (used by regenerate/edit). */
@@ -173,6 +175,20 @@ export const useChatStore = create<ChatState>()(
           ),
         })),
 
+      appendReasoning: (convoId, msgId, delta) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === convoId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === msgId ? { ...m, reasoning: (m.reasoning ?? '') + delta } : m,
+                  ),
+                }
+              : c,
+          ),
+        })),
+
       updateMessage: (convoId, msgId, patch) =>
         set((s) => ({
           conversations: s.conversations.map((c) =>
@@ -222,16 +238,32 @@ export const useChatStore = create<ChatState>()(
     {
       name: 'ollama-webui:chats',
       storage: createJSONStorage(() => localStorage),
-      version: 2,
-      // Migrate v1 conversations (pre-thinking) by adding the default thinking config.
+      version: 3,
       migrate: (persisted: unknown, version: number) => {
         if (!persisted || typeof persisted !== 'object') return persisted;
         const state = persisted as { conversations?: Conversation[] };
+        // v1 → v2: pre-thinking conversations get the default thinking config.
         if (version < 2 && state.conversations) {
           state.conversations = state.conversations.map((c) => ({
             ...c,
             thinking: c.thinking ?? { ...DEFAULT_THINKING },
           }));
+        }
+        // v2 → v3: effort values became Ollama's `think` levels. The old labels
+        // are no longer valid values (sending them yields HTTP 400), so remap.
+        if (version < 3 && state.conversations) {
+          const remap: Record<string, ThinkingEffort> = {
+            minimal: 'low',
+            default: 'medium',
+            extended: 'high',
+          };
+          state.conversations = state.conversations.map((c) => {
+            const effort = c.thinking?.effort as string | undefined;
+            if (effort && effort in remap) {
+              return { ...c, thinking: { ...c.thinking, effort: remap[effort]! } };
+            }
+            return c;
+          });
         }
         return state;
       },

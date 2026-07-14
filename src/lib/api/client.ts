@@ -122,6 +122,8 @@ export async function fetchModels(signal?: AbortSignal): Promise<ModelInfo[]> {
 
 export interface StreamHandlers {
   onDelta: (text: string) => void;
+  /** Reasoning deltas from the model's `thinking` stream, if any. */
+  onThinking?: (text: string) => void;
   onDone: (final: ChatStreamChunk) => void;
 }
 
@@ -154,6 +156,8 @@ export async function streamChat(
   try {
     for await (const chunk of parseChatStream(res.body, signal)) {
       if (chunk.error) throw new ApiError(chunk.error, { kind: 'http', status: res.status });
+      const thinking = chunk.message?.thinking ?? '';
+      if (thinking) handlers.onThinking?.(thinking);
       const delta = chunk.message?.content ?? chunk.response ?? '';
       if (delta) handlers.onDelta(delta);
       if (chunk.done) final = { ...final, ...chunk };

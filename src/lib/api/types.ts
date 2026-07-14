@@ -14,8 +14,11 @@ export interface ChatRequest {
   model: string;
   messages: ApiChatMessage[];
   stream?: boolean;
-  /** Ollama `think` flag — enables extended reasoning for capable models. */
-  think?: boolean;
+  /**
+   * Ollama `think` parameter — enables extended reasoning for capable models.
+   * `true`/`false` toggle it; the string levels set the reasoning effort.
+   */
+  think?: boolean | 'low' | 'medium' | 'high' | 'max';
   options?: {
     temperature?: number;
     top_p?: number;
@@ -23,15 +26,14 @@ export interface ChatRequest {
     repeat_penalty?: number;
     num_ctx?: number;
     num_predict?: number;
-    /** Thinking budget mapped from ThinkingEffort (0=minimal, 1=default, 2=extended). */
-    think_budget?: number;
   };
 }
 
 /** One NDJSON/SSE chunk from a streaming chat response (Ollama shape). */
 export interface ChatStreamChunk {
   model?: string;
-  message?: { role?: string; content?: string; images?: string[] };
+  /** `thinking` carries the model's reasoning stream, separate from content. */
+  message?: { role?: string; content?: string; thinking?: string; images?: string[] };
   /** Some proxies use `response` (generate endpoint) instead of message.content. */
   response?: string;
   done?: boolean;

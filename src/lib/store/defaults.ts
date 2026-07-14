@@ -12,15 +12,11 @@ export const DEFAULT_PARAMS: GenerationParams = {
 
 export const DEFAULT_THINKING: ThinkingConfig = {
   enabled: false,
-  effort: 'default',
+  effort: 'medium',
 };
 
-/** Map ThinkingEffort to the numeric think_budget sent in the API options. */
-export const THINK_BUDGET_MAP: Record<ThinkingEffort, number> = {
-  minimal: 0,
-  default: 1,
-  extended: 2,
-};
+/** Ordered thinking effort levels — used to render the selector. */
+export const THINKING_EFFORTS: ThinkingEffort[] = ['low', 'medium', 'high', 'max'];
 
 export const DEFAULT_SYSTEM_PROMPT =
   `You are a helpful, knowledgeable AI assistant. Your goal is to give accurate, well-structured answers that directly solve the user's problem.

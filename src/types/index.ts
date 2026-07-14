@@ -5,8 +5,11 @@
 
 export type Role = 'system' | 'user' | 'assistant';
 
-/** Effort level for extended thinking (Ollama `think` parameter). */
-export type ThinkingEffort = 'minimal' | 'default' | 'extended';
+/**
+ * Effort level for extended thinking. These values are sent verbatim as the
+ * Ollama `think` parameter, which accepts "low" | "medium" | "high" | "max".
+ */
+export type ThinkingEffort = 'low' | 'medium' | 'high' | 'max';
 
 /** Per-conversation thinking configuration. */
 export interface ThinkingConfig {
@@ -52,6 +55,10 @@ export interface Message {
   model?: string;
   /** True while the message is actively streaming. */
   streaming?: boolean;
+  /** The model's extended-thinking output, streamed separately from content. */
+  reasoning?: string;
+  /** Wall-clock time spent in the reasoning phase, ms (set once thinking ends). */
+  reasoningTimeMs?: number;
   /** Set when generation failed, holds a user-facing message. */
   error?: string;
   /** Arbitrary metadata — used by the tool engine to attach artifacts, etc. */
