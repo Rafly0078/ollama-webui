@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
-import { ArrowUp, FileText, Globe, Loader2, Paperclip, Square, X, Command } from 'lucide-react';
+import { ArrowUp, FileText, Globe, Loader2, Paperclip, Plus, Square, X, Check, Command } from 'lucide-react';
 import type { Attachment } from '@/types';
 import { fileToAttachment } from '@/lib/utils/files';
 import { estimateTokens } from '@/lib/utils/format';
@@ -40,12 +40,31 @@ export function ChatInput({
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [webSearch, setWebSearch] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const dragCounter = useRef(0);
   const { toast } = useToast();
   const sendOnEnter = useSettings((s) => s.sendOnEnter);
   const showTokenCounter = useSettings((s) => s.showTokenCounter);
+
+  // Close the tools menu on outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
 
   const slashOpen = value.startsWith('/') && !value.includes(' ');
   const slashMatches = slashOpen
@@ -196,8 +215,9 @@ export function ChatInput({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'popover relative rounded-md p-2 shadow-card transition-colors',
-          dragging && 'ring-2 ring-accent',
+          'relative rounded-3xl border border-border bg-surface-raised p-2 shadow-subtle transition-all',
+          'focus-within:border-accent/50 focus-within:shadow-card',
+          dragging && 'border-accent ring-2 ring-accent/40',
         )}
       >
         {/* Drag overlay */}
@@ -243,52 +263,103 @@ export function ChatInput({
           </div>
         )}
 
-        <div className="flex items-end gap-2">
-          {/* Compact action group — attach / document / web search share one
-              pill so they read as a single control and don't crowd the input. */}
-          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/60 bg-border/5 p-0.5">
-            <Tooltip label="Attach files (images, PDF, text)">
+        <div className="flex items-end gap-1.5">
+          {/* Tools collapsed into one popover so they don't crowd the input. */}
+          <div ref={menuRef} className="relative shrink-0">
+            <Tooltip label="Tools">
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => setMenuOpen((v) => !v)}
                 disabled={disabled}
-                className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
-                aria-label="Attach files"
-              >
-                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
-              </button>
-            </Tooltip>
-            <Tooltip label="Edit a document with AI">
-              <button
-                onClick={() => setDocEditOpen(true)}
-                disabled={disabled}
-                className="focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-content-muted transition-colors hover:bg-accent/20 hover:text-content disabled:opacity-40"
-                aria-label="Document editor"
-              >
-                <FileText className="h-5 w-5" />
-              </button>
-            </Tooltip>
-            <Tooltip label={webSearch ? 'Web search on — model will search before answering' : 'Search the web for this message'}>
-              <button
-                onClick={() => setWebSearch((v) => !v)}
-                disabled={disabled}
-                aria-label="Toggle web search"
-                aria-pressed={webSearch}
+                aria-label="Open tools"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
                 className={cn(
-                  'focus-ring flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-40',
-                  webSearch
-                    ? 'bg-accent text-accent-fg'
-                    : 'text-content-muted hover:bg-accent/20 hover:text-content',
+                  'focus-ring relative flex h-11 w-11 items-center justify-center rounded-2xl transition-colors disabled:opacity-40',
+                  menuOpen
+                    ? 'bg-accent/15 text-accent'
+                    : 'text-content-muted hover:bg-border/10 hover:text-content',
                 )}
               >
-                <Globe className="h-5 w-5" />
+                <Plus className={cn('h-5 w-5 transition-transform', menuOpen && 'rotate-45')} />
+                {webSearch && !menuOpen && (
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent ring-2 ring-surface-raised" />
+                )}
               </button>
             </Tooltip>
+
+            <AnimatePresence>
+              {menuOpen && (
+                <m.div
+                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                  transition={{ duration: 0.14 }}
+                  role="menu"
+                  className="popover absolute bottom-full left-0 z-30 mb-2 w-60 overflow-hidden rounded-2xl p-1.5 shadow-card"
+                >
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-content transition-colors hover:bg-border/10"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-border/15 text-content-muted">
+                      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-medium">Attach files</span>
+                      <span className="block text-xs text-content-subtle">Images, PDF, Office, code</span>
+                    </span>
+                  </button>
+
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setDocEditOpen(true);
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-content transition-colors hover:bg-border/10"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-border/15 text-content-muted">
+                      <FileText className="h-4 w-4" />
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-medium">Edit a document</span>
+                      <span className="block text-xs text-content-subtle">Rewrite a file with AI</span>
+                    </span>
+                  </button>
+
+                  <button
+                    role="menuitemcheckbox"
+                    aria-checked={webSearch}
+                    onClick={() => setWebSearch((v) => !v)}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-content transition-colors hover:bg-border/10"
+                  >
+                    <span
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-lg transition-colors',
+                        webSearch ? 'bg-accent text-accent-fg' : 'bg-border/15 text-content-muted',
+                      )}
+                    >
+                      <Globe className="h-4 w-4" />
+                    </span>
+                    <span className="flex-1">
+                      <span className="block font-medium">Web search</span>
+                      <span className="block text-xs text-content-subtle">Search before answering</span>
+                    </span>
+                    {webSearch && <Check className="h-4 w-4 text-accent" />}
+                  </button>
+                </m.div>
+              )}
+            </AnimatePresence>
           </div>
+
           <input
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.txt,.md,.csv,.json,.log,text/*"
             className="hidden"
             onChange={(e) => {
               if (e.target.files) void addFiles(e.target.files);
@@ -308,14 +379,14 @@ export function ChatInput({
               disabled ? 'Select a model to start chatting…' : 'Message your model…  (/ for commands)'
             }
             aria-label="Message input"
-            className="scrollbar-thin max-h-[220px] flex-1 resize-none bg-transparent py-2.5 text-[0.95rem] leading-6 text-content outline-none placeholder:text-content-subtle disabled:opacity-50"
+            className="scrollbar-thin max-h-[220px] flex-1 resize-none bg-transparent px-1 py-2.5 text-[0.95rem] leading-6 text-content outline-none placeholder:text-content-subtle disabled:opacity-50"
           />
 
           {generating ? (
             <Tooltip label="Stop generating (Esc)">
               <button
                 onClick={onStop}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-[3px] border-border bg-surface-raised text-content shadow-subtle transition-colors hover:bg-surface-overlay"
+                className="focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface-raised text-content shadow-subtle transition-colors hover:bg-surface-overlay"
                 aria-label="Stop generating"
               >
                 <Square className="h-4 w-4 fill-current" />
@@ -325,7 +396,7 @@ export function ChatInput({
             <button
               onClick={submit}
               disabled={disabled || (!value.trim() && attachments.length === 0)}
-              className="btn-primary h-11 w-11 shrink-0 rounded-md p-0"
+              className="btn-primary h-11 w-11 shrink-0 rounded-2xl p-0 transition-transform enabled:hover:scale-105 enabled:active:scale-95"
               aria-label="Send message"
             >
               <ArrowUp className="h-5 w-5" />
