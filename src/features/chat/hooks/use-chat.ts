@@ -5,14 +5,15 @@ import type { Attachment, Message } from '@/types';
 import { useChatStore } from '@/lib/store/chat-store';
 import { useThinkingStore } from '@/lib/store/thinking-store';
 import { ApiError } from '@/lib/api/config';
-import { streamChat } from '@/lib/api/client';
+import { streamChat, chat } from '@/lib/api/client';
 import { toApiMessages, toApiOptions, type ChatStreamChunk } from '@/lib/api/types';
 import { uid } from '@/lib/utils/id';
 import { detectArtifacts } from '@/lib/tools/detect';
 import { enrichPatches, extractCodeBlocks } from '@/lib/tools/patch';
 import type { Artifact } from '@/lib/tools/types';
 import { searchWeb } from '@/lib/search/client';
-import { formatSearchContext, toSources } from '@/lib/search/format';
+import { formatSearchContext, mergeSearchResponses, toSources } from '@/lib/search/format';
+import { buildPlanMessages, parsePlan, fallbackPlan, type SearchPlan } from '@/lib/search/plan';
 import { useToast } from '@/components/ui/toast';
 
 /**
@@ -195,7 +196,16 @@ export function useChat(conversationId: string | null) {
             ...(thinkingEnabled ? { think: convo.thinking.effort } : {}),
           },
           {
-            onDelta: (delta) => store.getState().appendToMessage(convoId, assistantId, delta),
+            onDelta: (delta) => {
+              // First answer token ends the agentic-search phase display.
+              const m = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((mm) => mm.id === assistantId);
+              if (m?.metadata?.searchPhase) {
+                store.getState().updateMessage(convoId, assistantId, {
+                  metadata: { ...m.metadata, searchPhase: undefined, searching: false },
+                });
+              }
+              store.getState().appendToMessage(convoId, assistantId, delta);
+            },
             onThinking: (delta) => store.getState().appendReasoning(convoId, assistantId, delta),
             onDone: (final) => {
               const finalContent = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((m) => m.id === assistantId)?.content ?? '';
@@ -253,6 +263,81 @@ export function useChat(conversationId: string | null) {
     [store, processArtifacts, processPatches],
   );
 
+  /**
+   * Agentic web search: plan → search → (return context for the reasoning turn).
+   * Returns the formatted search context to feed the streaming answer, or
+   * undefined when nothing usable came back. Updates `metadata.searchPhase` as
+   * it moves through phases so the UI can show a multi-step indicator.
+   *
+   * When `thinkingEnabled` is false we skip the planning round-trip entirely and
+   * search the raw user text — exactly the old behavior, so no regression.
+   */
+  const runAgenticSearch = useCallback(
+    async (
+      convoId: string,
+      messageId: string,
+      userText: string,
+      history: Message[],
+      model: string,
+      thinkingEnabled: boolean,
+    ): Promise<string | undefined> => {
+      const setMeta = (patch: Record<string, unknown>) => {
+        const msg = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((m) => m.id === messageId);
+        store.getState().updateMessage(convoId, messageId, { metadata: { ...msg?.metadata, ...patch } });
+      };
+
+      // Phase 1 — plan the search. Only when thinking is on; otherwise fall back
+      // to the raw query so weaker/non-thinking models keep working as before.
+      let plan: SearchPlan;
+      if (thinkingEnabled) {
+        setMeta({ searching: true, searchPhase: 'planning' });
+        try {
+          const raw = await chat({
+            model,
+            messages: buildPlanMessages(userText, history),
+            think: false, // plan JSON must be clean — no reasoning tokens in the body
+          });
+          plan = parsePlan(raw) ?? fallbackPlan(userText);
+        } catch {
+          plan = fallbackPlan(userText);
+        }
+      } else {
+        plan = fallbackPlan(userText);
+      }
+
+      if (plan.queries.length === 0) {
+        setMeta({ searching: false, searchPhase: undefined });
+        return undefined;
+      }
+
+      // Phase 2 — run the planned queries and merge results.
+      setMeta({ searching: true, searchPhase: 'searching', plannedQueries: plan.queries, searchGoal: plan.goal });
+      const settled = await Promise.allSettled(plan.queries.map((q) => searchWeb(q)));
+      const responses = settled
+        .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof searchWeb>>> => r.status === 'fulfilled')
+        .map((r) => r.value);
+
+      if (responses.length === 0) {
+        // Every query failed — surface the first rejection to the caller.
+        const firstErr = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+        throw firstErr?.reason instanceof Error ? firstErr.reason : new Error('Web search failed');
+      }
+
+      const merged = mergeSearchResponses(responses);
+
+      // Phase 3 — hand off to the reasoning turn. `analyzing` marks the moment
+      // the model starts thinking over the gathered data (runStream takes over).
+      setMeta({
+        searching: false,
+        searchPhase: 'analyzing',
+        sources: toSources(merged),
+        searchContext: formatSearchContext(merged),
+      });
+      return formatSearchContext(merged);
+    },
+    [store],
+  );
+
   const send = useCallback(
     async (text: string, attachments: Attachment[] = [], webSearch = false) => {
       if (!conversationId) return;
@@ -290,32 +375,33 @@ export function useChat(conversationId: string | null) {
       s.addMessage(conversationId, assistantMsg);
       if (convo.model) s.pushRecentModel(convo.model);
 
-      // Optional web search: fetch grounding context before streaming. A search
-      // failure is non-fatal — we toast and let the model answer without it
-      // rather than dropping the user's turn entirely.
+      // Optional web search. When thinking is available, this is agentic: the
+      // model first plans WHAT to search (keywords + goal), we run those
+      // queries, then the streaming turn reasons over the results. A search
+      // failure is non-fatal — we toast and let the model answer without it.
       let searchContext: string | undefined;
       if (webSearch && trimmed) {
-        store.getState().updateMessage(conversationId, assistantMsg.id, {
-          metadata: { ...assistantMsg.metadata, searching: true },
-        });
+        const thinkingEnabled = convo.thinking?.enabled === true && !!convo.model;
         try {
-          const res = await searchWeb(trimmed);
-          searchContext = formatSearchContext(res);
-          store.getState().updateMessage(conversationId, assistantMsg.id, {
-            // Persist the grounding so regenerate/continue can reuse it.
-            metadata: { searching: false, sources: toSources(res), searchContext },
-          });
+          searchContext = await runAgenticSearch(
+            conversationId,
+            assistantMsg.id,
+            trimmed,
+            convo.messages,
+            convo.model,
+            thinkingEnabled,
+          );
         } catch (err) {
           toast(err instanceof Error ? err.message : 'Web search failed', 'error');
           store.getState().updateMessage(conversationId, assistantMsg.id, {
-            metadata: { searching: false },
+            metadata: { searchPhase: undefined, searching: false },
           });
         }
       }
 
       await runStream(conversationId, assistantMsg.id, { searchContext });
     },
-    [conversationId, runStream, store, toast],
+    [conversationId, runStream, runAgenticSearch, store, toast],
   );
 
   const regenerate = useCallback(

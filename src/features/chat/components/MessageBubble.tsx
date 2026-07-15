@@ -80,6 +80,15 @@ export const MessageBubble = memo(function MessageBubble({
   // flight; `sources` persists after it resolves.
   const searching = message.metadata?.searching === true;
   const sources = (message.metadata?.sources as Source[] | undefined) ?? [];
+  // Agentic search phase: planning → searching → analyzing. Drives the
+  // multi-step status indicator so the user sees the model plan, then search,
+  // then reason over results instead of one opaque "Searching…".
+  const searchPhase = message.metadata?.searchPhase as
+    | 'planning'
+    | 'searching'
+    | 'analyzing'
+    | undefined;
+  const plannedQueries = (message.metadata?.plannedQueries as string[] | undefined) ?? [];
 
   // Only the newest message plays the entrance animation. Animating every
   // bubble on mount means a 50-message conversation fires 50 simultaneous
@@ -149,12 +158,20 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        {/* Web-search status: shown while grounding results are being fetched,
-            before any content streams in. */}
+        {/* Web-search status: a multi-phase indicator for agentic search
+            (plan → search → analyze), shown before the answer streams in. */}
         {!isUser && searching && (
-          <div className="mb-2 inline-flex items-center gap-2 rounded-md border border-border bg-border/5 px-2.5 py-1.5 text-xs text-content-muted">
-            <Globe className="h-3.5 w-3.5 animate-pulse text-accent" />
-            Searching the web…
+          <div className="mb-2 inline-flex max-w-full items-center gap-2 rounded-md border border-border bg-border/5 px-2.5 py-1.5 text-xs text-content-muted">
+            <Globe className="h-3.5 w-3.5 shrink-0 animate-pulse text-accent" />
+            <span className="min-w-0">
+              {searchPhase === 'planning'
+                ? 'Merencanakan pencarian…'
+                : searchPhase === 'analyzing'
+                  ? 'Menganalisis hasil…'
+                  : plannedQueries.length > 0
+                    ? `Mencari: ${plannedQueries.join(', ')}`
+                    : 'Mencari di web…'}
+            </span>
           </div>
         )}
 

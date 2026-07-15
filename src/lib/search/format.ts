@@ -39,3 +39,29 @@ export function toSources(res: SearchResponse): Source[] {
     .slice(0, MAX_RESULTS_IN_CONTEXT)
     .map((r: SearchResult) => ({ title: r.title, url: r.url }));
 }
+
+/**
+ * Merge several search responses (from a multi-query agentic plan) into one,
+ * deduping results by URL and keeping the highest-scoring copy. Used so the
+ * final answer sees a single, consolidated context block instead of N separate
+ * ones with overlapping hits.
+ */
+export function mergeSearchResponses(responses: SearchResponse[]): SearchResponse {
+  const byUrl = new Map<string, SearchResult>();
+  for (const res of responses) {
+    for (const r of res.results) {
+      const existing = byUrl.get(r.url);
+      // Keep the copy with richer content / higher score on collision.
+      if (!existing || (r.score ?? 0) > (existing.score ?? 0)) {
+        byUrl.set(r.url, r);
+      }
+    }
+  }
+
+  const merged = [...byUrl.values()].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  // Combine the distinct queries into the displayed "query" line; prefer the
+  // first provider answer that exists.
+  const query = responses.map((r) => r.query).filter(Boolean).join(' · ');
+  const answer = responses.find((r) => r.answer?.trim())?.answer;
+  return { query, answer, results: merged };
+}
