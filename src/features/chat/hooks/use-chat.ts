@@ -176,6 +176,16 @@ export function useChat(conversationId: string | null) {
       const options = toApiOptions(convo.params);
       const thinkingEnabled = convo.thinking?.enabled === true;
 
+      // Stamp the effort level onto the message so the reasoning panel can react
+      // to it (e.g. the "max" shimmer) and it survives a reload. Cleared when
+      // thinking is off so a regenerate at a lower level doesn't keep a stale one.
+      s.updateMessage(convoId, assistantId, {
+        metadata: {
+          ...assistantMsg?.metadata,
+          effort: thinkingEnabled ? convo.thinking.effort : undefined,
+        },
+      });
+
       try {
         await streamChat(
           {

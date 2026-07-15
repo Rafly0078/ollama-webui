@@ -489,6 +489,79 @@ h4 {
   @apply ml-0.5 inline-block animate-caret-blink text-accent;
 }
 
+/* ---------------------------------------------------------------------------
+   MAX-EFFORT REASONING — the "ultracode" treatment. When a turn runs at max
+   thinking effort, the panel label gets a gradient shimmer sweeping across it
+   and the panel itself carries a soft, slowly breathing accent glow. Purely
+   decorative and live-only (the component removes these classes once the
+   answer starts), so it never touches settled history.
+--------------------------------------------------------------------------- */
+
+/* Gradient sweep across the label text. A wide accent→soft→accent gradient is
+   clipped to the glyphs and its background-position animated left→right. */
+.reasoning-shimmer {
+  background-image: linear-gradient(
+    100deg,
+    rgb(var(--accent) / 0.65) 0%,
+    rgb(var(--accent)) 30%,
+    rgb(var(--accent-soft)) 50%,
+    rgb(var(--accent)) 70%,
+    rgb(var(--accent) / 0.65) 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: reasoning-shimmer 2.2s linear infinite;
+}
+
+@keyframes reasoning-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Slowly breathing accent ring around the whole panel. */
+.reasoning-panel-max {
+  border-color: rgb(var(--accent) / 0.55);
+  animation: reasoning-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes reasoning-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgb(var(--accent) / 0);
+    border-color: rgb(var(--accent) / 0.35);
+  }
+  50% {
+    box-shadow: 0 0 16px 1px rgb(var(--accent) / 0.28);
+    border-color: rgb(var(--accent) / 0.7);
+  }
+}
+
+/* The brain icon pulses in scale + opacity rather than the plain fade. */
+.reasoning-brain-max {
+  animation: reasoning-brain 1.6s ease-in-out infinite;
+}
+
+@keyframes reasoning-brain {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.12); }
+}
+
+/* Respect reduced-motion: keep the accent colour cues, drop the animation. */
+@media (prefers-reduced-motion: reduce) {
+  .reasoning-shimmer {
+    animation: none;
+    background: none;
+    -webkit-background-clip: border-box;
+    background-clip: border-box;
+    color: rgb(var(--accent));
+  }
+  .reasoning-panel-max,
+  .reasoning-brain-max {
+    animation: none;
+  }
+}
+
 /* Bright paper neo-brutalism override. Kept here so existing component logic
    can retain shared semantic classes while the visual system changes wholly. */
 :root,

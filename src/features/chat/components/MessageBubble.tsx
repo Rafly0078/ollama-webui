@@ -17,7 +17,7 @@ import {
   Brain,
   ChevronDown,
 } from 'lucide-react';
-import type { Message } from '@/types';
+import type { Message, ThinkingEffort } from '@/types';
 import type { Source } from '@/lib/search/types';
 import { Markdown } from '@/components/markdown/Markdown';
 import { Tooltip } from '@/components/ui/tooltip';
@@ -165,6 +165,7 @@ export const MessageBubble = memo(function MessageBubble({
             reasoning={message.reasoning}
             thinking={message.streaming === true}
             hasContent={message.content.length > 0}
+            effort={message.metadata?.effort as ThinkingEffort | undefined}
           />
         )}
 
@@ -298,10 +299,11 @@ export const MessageBubble = memo(function MessageBubble({
  * once the answer begins — matching the "show the thinking, then tuck it away"
  * pattern from other chat UIs. A manual toggle overrides the auto behavior.
  */
-function ReasoningPanel({ reasoning, thinking, hasContent }: {
+function ReasoningPanel({ reasoning, thinking, hasContent, effort }: {
   reasoning: string;
   thinking: boolean;
   hasContent: boolean;
+  effort?: ThinkingEffort;
 }) {
   // Live reasoning (thinking, no answer yet) starts open. Once the answer
   // arrives or streaming ends, default to collapsed. `manual` pins the state
@@ -310,15 +312,33 @@ function ReasoningPanel({ reasoning, thinking, hasContent }: {
   const [manual, setManual] = useState<boolean | null>(null);
   const open = manual ?? liveThinking;
 
+  // "Max" effort gets the ultracode treatment — a shimmering gradient sweep on
+  // the label + a soft accent glow around the panel — but only while it's
+  // actively thinking. Once the answer lands it settles into the normal panel.
+  const maxThinking = liveThinking && effort === 'max';
+
   return (
-    <div className="mb-2 overflow-hidden rounded-xl border border-border/60 bg-border/5">
+    <div
+      className={cn(
+        'reasoning-panel mb-2 overflow-hidden rounded-xl border border-border/60 bg-border/5',
+        maxThinking && 'reasoning-panel-max',
+      )}
+    >
       <button
         onClick={() => setManual(!open)}
         aria-expanded={open}
         className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-content-muted transition-colors hover:bg-border/10"
       >
-        <Brain className={cn('h-3.5 w-3.5 shrink-0 text-accent', liveThinking && 'animate-pulse')} />
-        <span className="flex-1">{liveThinking ? 'Thinking…' : 'Thought process'}</span>
+        <Brain
+          className={cn(
+            'h-3.5 w-3.5 shrink-0 text-accent',
+            liveThinking && !maxThinking && 'animate-pulse',
+            maxThinking && 'reasoning-brain-max',
+          )}
+        />
+        <span className={cn('flex-1', maxThinking && 'reasoning-shimmer')}>
+          {liveThinking ? (maxThinking ? 'Thinking harder…' : 'Thinking…') : 'Thought process'}
+        </span>
         <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')} />
       </button>
       <AnimatePresence initial={false}>
