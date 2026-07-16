@@ -9,13 +9,15 @@ import type {
 } from './types';
 
 /**
- * Sent on every upstream request. ngrok's free tier injects an HTML browser-
- * warning interstitial for requests without this header, which arrives where we
- * expect JSON/NDJSON and blows up parsing ("Unexpected token '<'"). Cloudflare
- * Tunnels and a bare Ollama server ignore the unknown header, so it's safe to
- * send unconditionally.
+ * Direct mode sends these from the BROWSER straight to Ollama. Any custom header
+ * (like ngrok's `ngrok-skip-browser-warning`) triggers a CORS preflight the
+ * upstream must explicitly allow in `Access-Control-Allow-Headers`; most Ollama /
+ * Cloudflare Tunnel setups don't, so the request gets blocked. Keeping this empty
+ * avoids the preflight entirely. ngrok users who need the skip header should use
+ * bridge mode, where the header is added server-side (see lib/bridge/ollama.ts)
+ * and no CORS applies.
  */
-const TUNNEL_HEADERS = { 'ngrok-skip-browser-warning': 'true' } as const;
+const TUNNEL_HEADERS = {} as const;
 
 /** Combine an external signal with an internal timeout. */
 function withTimeout(ms: number, external?: AbortSignal): { signal: AbortSignal; cancel: () => void } {
