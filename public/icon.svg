@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Background: app's accent violet (#7C3AED) -->
+  <rect width="512" height="512" rx="96" fill="#7C3AED"/>
+  <!-- Chat bubble shape -->
+  <path d="M128 128 L384 128 Q400 128 400 144 L400 320 Q400 336 384 336 L200 336 L144 392 L160 336 L128 336 Q112 336 112 320 L112 144 Q112 128 128 128 Z" fill="#fff" rx="24"/>
+  <!-- Atom/spark symbol inside bubble -->
+  <circle cx="256" cy="232" r="16" fill="#7C3AED"/>
+  <ellipse cx="256" cy="232" rx="48" ry="20" fill="none" stroke="#7C3AED" stroke-width="8" transform="rotate(45 256 232)"/>
+  <ellipse cx="256" cy="232" rx="48" ry="20" fill="none" stroke="#7C3AED" stroke-width="8" transform="rotate(-45 256 232)"/>
+</svg>

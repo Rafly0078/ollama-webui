@@ -14,6 +14,7 @@ import {
   Trash2,
   Upload,
   Sparkles,
+  Smartphone,
   User,
 } from 'lucide-react';
 import { AmbientBackground } from '@/components/AmbientBackground';
@@ -29,11 +30,12 @@ import { useHydrated } from '@/lib/hooks/use-hydrated';
 import { API_BASE_URL } from '@/lib/api/config';
 import { downloadText } from '@/lib/utils/export';
 import { uid } from '@/lib/utils/id';
+import { usePWAInstall } from '@/lib/hooks/use-pwa-install';
 import { cn } from '@/lib/utils/cn';
 import { AccountSection } from '@/features/auth/AccountSection';
 import type { Conversation, PromptPreset } from '@/types';
 
-type SectionId = 'account' | 'appearance' | 'connection' | 'prompt' | 'params' | 'data';
+type SectionId = 'account' | 'appearance' | 'connection' | 'prompt' | 'params' | 'app' | 'data';
 
 const NAV: { id: SectionId; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'account', label: 'Account', icon: User },
@@ -41,6 +43,7 @@ const NAV: { id: SectionId; label: string; icon: React.ComponentType<{ className
   { id: 'connection', label: 'Connection', icon: Server },
   { id: 'prompt', label: 'System prompt', icon: Terminal },
   { id: 'params', label: 'Generation', icon: Sliders },
+  { id: 'app', label: 'Install app', icon: Smartphone },
   { id: 'data', label: 'Data & backup', icon: Download },
 ];
 
@@ -313,6 +316,13 @@ export default function SettingsPage() {
         </Section>
         )}
 
+        {/* Install app (PWA) */}
+        {active === 'app' && (
+        <Section icon={Smartphone} title="Install app">
+          <InstallAppSection />
+        </Section>
+        )}
+
         {/* Data */}
         {active === 'data' && (
         <Section icon={Download} title="Data & backup">
@@ -507,6 +517,84 @@ function PresetManager({ presets }: { presets: PromptPreset[] }) {
           <Plus className="h-4 w-4" />
         </button>
       </div>
+    </div>
+  );
+}
+
+function InstallAppSection() {
+  const { canInstall, installed, isIOS, promptInstall } = usePWAInstall();
+
+  if (installed) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
+        <Smartphone className="h-5 w-5 text-success" />
+        <div>
+          <p className="text-sm font-medium text-content">App is installed</p>
+          <p className="text-xs text-content-muted">
+            You&apos;re running Ollama Chat as an installed app. Launch it from your home screen.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isIOS) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-raised p-4">
+          <Smartphone className="h-5 w-5 text-accent" />
+          <div>
+            <p className="text-sm font-medium text-content">Install on iOS</p>
+            <p className="text-xs text-content-muted">
+              Tap the Share button in Safari, then &ldquo;Add to Home Screen&rdquo; to install this app.
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-content-subtle">
+          iOS doesn&apos;t support the automatic install prompt — you need to add it manually from the
+          Share sheet. Once installed, it works like a native app: full screen, its own icon, and
+          no browser chrome.
+        </p>
+      </div>
+    );
+  }
+
+  if (!canInstall) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-raised p-4">
+          <Smartphone className="h-5 w-5 text-accent" />
+          <div>
+            <p className="text-sm font-medium text-content">Install as an app</p>
+            <p className="text-xs text-content-muted">
+              This browser doesn&apos;t support app installation, or the app is already installed.
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-content-subtle">
+          On Chrome or Edge (Android/desktop), the install button appears here automatically once
+          the browser detects the app is installable. Make sure you&apos;re using a supported browser
+          and the page has finished loading.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 p-4">
+        <Smartphone className="h-5 w-5 text-accent" />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-content">Install Ollama Chat</p>
+          <p className="text-xs text-content-muted">
+            Install this app on your device for quick access. It works offline, opens in its own
+            window, and feels like a native app.
+          </p>
+        </div>
+      </div>
+      <Button variant="primary" onClick={() => void promptInstall()}>
+        <Smartphone className="h-4 w-4" /> Install app
+      </Button>
     </div>
   );
 }

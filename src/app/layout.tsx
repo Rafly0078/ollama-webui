@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -23,7 +24,11 @@ export const metadata: Metadata = {
   applicationName: 'Ollama Chat',
   authors: [{ name: 'Ollama WebUI' }],
   keywords: ['ollama', 'ai', 'chat', 'llm', 'webui', 'local ai', 'private ai'],
-  icons: { icon: '/favicon.svg' },
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/apple-touch-icon.png',
+  },
+  manifest: '/manifest.webmanifest',
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -75,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME }} />
       </head>
       <body className="min-h-[100dvh] antialiased">
+        <ServiceWorkerRegister />
         <Providers>{children}</Providers>
       </body>
     </html>
