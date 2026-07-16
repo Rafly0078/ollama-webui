@@ -121,7 +121,7 @@ const createPptx: ExecutorFn = async (req) => {
     }
     if (slide.bullets?.length) {
       s.addText(
-        slide.bullets.flatMap((b, i) => {
+        slide.bullets.flatMap((b) => {
           const r = runs(b, { fontSize: 18, color: BODY });
           // First run of each bullet carries the bullet + paragraph break.
           return r.map((run, j) => ({

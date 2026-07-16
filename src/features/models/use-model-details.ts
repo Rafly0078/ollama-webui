@@ -29,13 +29,14 @@ export function useModelDetails() {
     error: null,
   });
 
-  const fetchDetails = useCallback(async (modelName: string) => {
+  const fetchDetails = useCallback(async (modelName: string, signal?: AbortSignal) => {
     setState({ details: null, loading: true, error: null });
     try {
       const res = await fetch(apiUrl('/api/show'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: modelName }),
+        signal,
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: 'Failed to fetch model details' }));
@@ -45,6 +46,7 @@ export function useModelDetails() {
       setState({ details: data, loading: false, error: null });
     } catch (err) {
       if (err instanceof ApiError && err.kind === 'aborted') return;
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       setState({ details: null, loading: false, error: err instanceof ApiError ? err.userMessage : 'Failed to load model details.' });
     }
   }, []);

@@ -33,6 +33,9 @@ export function useChatSync(): void {
   const persisted = useRef<Map<string, number>>(new Map());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hydratedFor = useRef<string | null>(null);
+  // Guards against overlapping debounced flushes (see below).
+  const flushing = useRef(false);
+  const dirty = useRef(false);
 
   // Initial hydrate on (re)login.
   useEffect(() => {
@@ -85,35 +88,54 @@ export function useChatSync(): void {
     if (!active || !userId) return;
 
     const flush = async () => {
-      const convos = useChatStore.getState().conversations;
-      const seen = new Set<string>();
-      const known = persisted.current;
-
-      // Upsert new/changed.
-      const changed: Conversation[] = [];
-      for (const c of convos) {
-        seen.add(c.id);
-        const prev = known.get(c.id);
-        if (prev === undefined || prev !== c.updatedAt) changed.push(c);
+      // Guard against overlapping flushes — a debounce that fires while a
+      // previous flush is still running would read the same snapshot and
+      // duplicate every write. Instead, mark that we're dirty and re-run
+      // after the current flush completes.
+      if (flushing.current) {
+        dirty.current = true;
+        return;
       }
-      // Delete removed.
-      const removed: string[] = [];
-      for (const id of known.keys()) if (!seen.has(id)) removed.push(id);
+      flushing.current = true;
 
-      for (const c of changed) {
-        try {
-          await saveConversation(c, userId);
-          known.set(c.id, c.updatedAt);
-        } catch {
-          /* retry next flush */
+      try {
+        const convos = useChatStore.getState().conversations;
+        const seen = new Set<string>();
+        const known = persisted.current;
+
+        // Upsert new/changed.
+        const changed: Conversation[] = [];
+        for (const c of convos) {
+          seen.add(c.id);
+          const prev = known.get(c.id);
+          if (prev === undefined || prev !== c.updatedAt) changed.push(c);
         }
-      }
-      for (const id of removed) {
-        try {
-          await deleteRemote(id);
-          known.delete(id);
-        } catch {
-          /* retry next flush */
+        // Delete removed.
+        const removed: string[] = [];
+        for (const id of known.keys()) if (!seen.has(id)) removed.push(id);
+
+        for (const c of changed) {
+          try {
+            await saveConversation(c, userId);
+            known.set(c.id, c.updatedAt);
+          } catch {
+            /* retry next flush */
+          }
+        }
+        for (const id of removed) {
+          try {
+            await deleteRemote(id);
+            known.delete(id);
+          } catch {
+            /* retry next flush */
+          }
+        }
+      } finally {
+        flushing.current = false;
+        // If the store changed during the flush, schedule another one.
+        if (dirty.current) {
+          dirty.current = false;
+          timer.current = setTimeout(flush, DEBOUNCE_MS);
         }
       }
     };

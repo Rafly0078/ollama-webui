@@ -16,13 +16,37 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://ollama-chat.vercel.app'),
   title: 'Ollama Chat — AI WebUI',
   description:
     'A fast, beautiful ChatGPT-style interface for your local Ollama models. Streaming, Markdown, LaTeX, code, and more.',
   applicationName: 'Ollama Chat',
   authors: [{ name: 'Ollama WebUI' }],
-  keywords: ['ollama', 'ai', 'chat', 'llm', 'webui'],
+  keywords: ['ollama', 'ai', 'chat', 'llm', 'webui', 'local ai', 'private ai'],
   icons: { icon: '/favicon.svg' },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://ollama-chat.vercel.app',
+    title: 'Ollama Chat — AI WebUI',
+    description:
+      'A fast, beautiful ChatGPT-style interface for your local Ollama models. Streaming, Markdown, LaTeX, code, and more.',
+    siteName: 'Ollama Chat',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Ollama Chat — AI WebUI',
+    description:
+      'A fast, beautiful ChatGPT-style interface for your local Ollama models. Streaming, Markdown, LaTeX, code, and more.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
 };
 
 export const viewport: Viewport = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import Link from 'next/link';
 import { Plus, Search, Settings2, X } from 'lucide-react';
@@ -28,7 +28,18 @@ export function Sidebar({ open, onClose, onNewChat }: Props) {
   const defaultModel = useSettings((s) => s.defaultModel);
   const isMobile = useIsMobile();
 
-  const { pinned, groups } = useMemo(() => filterAndGroup(conversations, query), [conversations, query]);
+  // Debounce the raw query so the expensive filterAndGroup (which scans every
+  // message body across all conversations) doesn't run on every keystroke.
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 150);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const { pinned, groups } = useMemo(
+    () => filterAndGroup(conversations, debouncedQuery),
+    [conversations, debouncedQuery],
+  );
 
   const select = (id: string) => {
     setActive(id);

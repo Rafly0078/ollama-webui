@@ -35,12 +35,19 @@ export async function loadConversations(): Promise<Conversation[]> {
   if (!convoRows?.length) return [];
 
   const ids = convoRows.map((c) => c.id);
-  const { data: msgRows, error: msgErr } = await supabase
-    .from('messages')
-    .select('*')
-    .in('conversation_id', ids)
-    .order('seq', { ascending: true });
-  if (msgErr) throw new Error(msgErr.message);
+
+  // Messages and artifacts are independent — fetch them in parallel to cut
+  // the total round-trips from 3 sequential queries to 2.
+  const [msgResult, artResult] = await Promise.all([
+    supabase.from('messages').select('*').in('conversation_id', ids).order('seq', { ascending: true }),
+    supabase.from('artifacts').select('*').in('conversation_id', ids).order('created_at', { ascending: true }),
+  ]);
+
+  if (msgResult.error) throw new Error(msgResult.error.message);
+  const msgRows = msgResult.data as MessageRow[] | null;
+
+  if (artResult.error) throw new Error(artResult.error.message);
+  const artifactRows = artResult.data as ArtifactRow[] | null;
 
   const byConvo = new Map<string, Message[]>();
   for (const row of (msgRows ?? []) as MessageRow[]) {
@@ -54,13 +61,6 @@ export async function loadConversations(): Promise<Conversation[]> {
   // reloaded conversation shows its text but drops every generated file. Fetch
   // them and re-attach to the owning message's metadata — exactly where the
   // tool engine puts them at generation time (see use-chat.ts processArtifacts).
-  const { data: artifactRows, error: artErr } = await supabase
-    .from('artifacts')
-    .select('*')
-    .in('conversation_id', ids)
-    .order('created_at', { ascending: true });
-  if (artErr) throw new Error(artErr.message);
-
   const artifactsByMessage = new Map<string, Artifact[]>();
   // Legacy/orphaned artifacts: earlier versions of saveConversation deleted &
   // re-inserted messages on every sync, which nulled artifacts.message_id via
@@ -126,6 +126,8 @@ export async function saveConversation(convo: Conversation, userId: string): Pro
 
   // Drop messages that are no longer part of the conversation (edits/regenerate
   // truncate the tail). Scope by conversation_id; exclude the ones we keep.
+  // Only run when there are IDs to keep — otherwise a simple eq() delete is
+  // cleaner and avoids an empty `NOT IN ()` clause.
   let delQuery = supabase.from('messages').delete().eq('conversation_id', convo.id);
   if (keepIds.length) {
     delQuery = delQuery.not('id', 'in', `(${keepIds.join(',')})`);

@@ -18,9 +18,10 @@ export function ModelDetailsPanel({ open, onClose, model }: Props) {
   const { details, loading, error, fetchDetails } = useModelDetails();
 
   useEffect(() => {
-    if (open && model?.name) {
-      fetchDetails(model.name);
-    }
+    if (!open || !model?.name) return;
+    const ctrl = new AbortController();
+    fetchDetails(model.name, ctrl.signal);
+    return () => ctrl.abort();
   }, [open, model?.name, fetchDetails]);
 
   return (

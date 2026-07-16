@@ -241,23 +241,40 @@ export function ArtifactPanel({ artifacts, onDelete }: Props) {
   useEffect(() => {
     if (!refreshKey) return;
     let cancelled = false;
-    for (const a of artifacts) {
-      if (a.ephemeral || !a.bucket || !a.storagePath) continue;
-      fetch('/api/artifacts/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bucket: a.bucket, storagePath: a.storagePath }),
-      })
-        .then((res) => (res.ok ? (res.json() as Promise<{ url?: string }>) : null))
-        .then((data) => {
-          if (!cancelled && data?.url) {
-            setFreshUrls((prev) => ({ ...prev, [a.id]: data.url! }));
-          }
+
+    // Fire all URL refresh requests in parallel rather than serially — each
+    // is an independent round-trip to /api/artifacts/refresh, so batching
+    // them cuts the wait from N*RTT to 1*RTT.
+    const refreshable = artifacts.filter((a) => !a.ephemeral && a.bucket && a.storagePath);
+    if (refreshable.length === 0) return;
+
+    Promise.allSettled(
+      refreshable.map((a) =>
+        fetch('/api/artifacts/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket: a.bucket, storagePath: a.storagePath }),
         })
-        .catch(() => {
-          /* keep whatever URL we already have — better than nothing */
+          .then((res) => (res.ok ? (res.json() as Promise<{ url?: string }>) : null))
+          .then((data) => ({ id: a.id, url: data?.url })),
+      ),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        setFreshUrls((prev) => {
+          const next = { ...prev };
+          for (const r of results) {
+            if (r.status === 'fulfilled' && r.value?.url) {
+              next[r.value.id] = r.value.url;
+            }
+          }
+          return next;
         });
-    }
+      })
+      .catch(() => {
+        /* keep whatever URLs we already have */
+      });
+
     return () => {
       cancelled = true;
     };

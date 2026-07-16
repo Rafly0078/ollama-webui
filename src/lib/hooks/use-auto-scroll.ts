@@ -20,7 +20,7 @@ export function useAutoScroll<T extends HTMLElement>(dep: unknown) {
     const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
     const near = distance < threshold;
     stick.current = near;
-    setAtBottom(near);
+    setAtBottom((prev) => (prev === near ? prev : near));
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
@@ -28,7 +28,7 @@ export function useAutoScroll<T extends HTMLElement>(dep: unknown) {
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior });
     stick.current = true;
-    setAtBottom(true);
+    setAtBottom((prev) => (prev ? prev : true));
   }, []);
 
   // Follow new content only when the user is already pinned to the bottom.
