@@ -1,6 +1,6 @@
 'use client';
 
-import { lazy, memo, Suspense } from 'react';
+import { lazy, memo, Suspense, useEffect, useRef, useState } from 'react';
 
 /**
  * Lazy markdown boundary. The heavy renderer (react-markdown, remark/rehype,
@@ -18,6 +18,49 @@ function PlainFallback({ content }: { content: string }) {
   return <div className="prose-chat whitespace-pre-wrap break-words">{content}</div>;
 }
 
+/**
+ * Gate rich rendering on visibility. `content-visibility: auto` skips layout and
+ * paint for offscreen messages, but NOT JavaScript — without this, mounting a
+ * long conversation runs react-markdown + highlight.js synchronously for every
+ * message at once (dozens of blocks), which drops frames on load. Here each
+ * message renders as plain text until it scrolls near the viewport, then
+ * upgrades to the full renderer. The upgrade is one-way: once a message has been
+ * seen it stays rich, so scrolling back and forth never re-parses or churns.
+ *
+ * Streaming messages skip the gate entirely — they're always on screen and must
+ * render live.
+ */
+function useHasBeenVisible(streaming: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(streaming);
+
+  useEffect(() => {
+    if (visible) return;
+    const el = ref.current;
+    if (!el) return;
+    // No IntersectionObserver (old browsers / SSR edge) → render rich now.
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      // Start rendering a bit before the message enters view so the upgrade
+      // isn't visible to the user as a swap.
+      { rootMargin: '600px 0px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return { ref, visible };
+}
+
 export const Markdown = memo(function Markdown({
   content,
   streaming,
@@ -25,6 +68,16 @@ export const Markdown = memo(function Markdown({
   content: string;
   streaming?: boolean;
 }) {
+  const { ref, visible } = useHasBeenVisible(streaming === true);
+
+  if (!visible) {
+    return (
+      <div ref={ref}>
+        <PlainFallback content={content} />
+      </div>
+    );
+  }
+
   return (
     <Suspense fallback={<PlainFallback content={content} />}>
       <MarkdownRenderer content={content} streaming={streaming} />

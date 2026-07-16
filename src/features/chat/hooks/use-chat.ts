@@ -187,6 +187,40 @@ export function useChat(conversationId: string | null) {
         },
       });
 
+      // Coalesce streamed tokens into a single store write per animation
+      // frame. Upstream emits one delta per token; writing to the store per
+      // token forces a full React re-render (and, via persist, a serialize)
+      // thousands of times per response. Buffering to rAF caps that at the
+      // display refresh rate while losing no content.
+      let contentBuffer = '';
+      let reasoningBuffer = '';
+      let rafId: number | null = null;
+      let firstToken = true;
+
+      const flushBuffers = () => {
+        rafId = null;
+        if (contentBuffer) {
+          store.getState().appendToMessage(convoId, assistantId, contentBuffer);
+          contentBuffer = '';
+        }
+        if (reasoningBuffer) {
+          store.getState().appendReasoning(convoId, assistantId, reasoningBuffer);
+          reasoningBuffer = '';
+        }
+      };
+      const scheduleFlush = () => {
+        if (rafId === null) rafId = requestAnimationFrame(flushBuffers);
+      };
+      // Flush any buffered tokens immediately (stream end / abort / error) so
+      // the final state is complete before we read it back.
+      const flushNow = () => {
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        flushBuffers();
+      };
+
       try {
         await streamChat(
           {
@@ -198,16 +232,24 @@ export function useChat(conversationId: string | null) {
           {
             onDelta: (delta) => {
               // First answer token ends the agentic-search phase display.
-              const m = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((mm) => mm.id === assistantId);
-              if (m?.metadata?.searchPhase) {
-                store.getState().updateMessage(convoId, assistantId, {
-                  metadata: { ...m.metadata, searchPhase: undefined, searching: false },
-                });
+              if (firstToken) {
+                firstToken = false;
+                const m = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((mm) => mm.id === assistantId);
+                if (m?.metadata?.searchPhase) {
+                  store.getState().updateMessage(convoId, assistantId, {
+                    metadata: { ...m.metadata, searchPhase: undefined, searching: false },
+                  });
+                }
               }
-              store.getState().appendToMessage(convoId, assistantId, delta);
+              contentBuffer += delta;
+              scheduleFlush();
             },
-            onThinking: (delta) => store.getState().appendReasoning(convoId, assistantId, delta),
+            onThinking: (delta) => {
+              reasoningBuffer += delta;
+              scheduleFlush();
+            },
             onDone: (final) => {
+              flushNow();
               const finalContent = store.getState().conversations.find((c) => c.id === convoId)?.messages.find((m) => m.id === assistantId)?.content ?? '';
               store.getState().updateMessage(convoId, assistantId, {
                 streaming: false,
@@ -222,6 +264,8 @@ export function useChat(conversationId: string | null) {
           controller.signal,
         );
       } catch (err) {
+        // Preserve whatever was buffered before the stream broke off.
+        flushNow();
         const apiErr = ApiError.from(err);
         const cur = store
           .getState()

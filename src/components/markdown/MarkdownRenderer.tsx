@@ -134,7 +134,7 @@ const MarkdownRenderer = memo(function MarkdownRenderer({
     <div className="prose-chat">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: true, ignoreMissing: true }]]}
+        rehypePlugins={[rehypeKatex, [rehypeHighlight, { detect: false, ignoreMissing: true }]]}
         components={components}
       >
         {content}

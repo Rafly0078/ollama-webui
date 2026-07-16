@@ -46,6 +46,52 @@ function touch(convo: Conversation): Conversation {
   return { ...convo, updatedAt: Date.now() };
 }
 
+/**
+ * A localStorage wrapper that coalesces writes. During streaming the store is
+ * updated once per token; without this, `persist` would `JSON.stringify` the
+ * entire conversation set on every token, driving RAM and GC pressure through
+ * the roof (and hanging the tab) on long chats. Writes are deferred and only
+ * the latest value is flushed, at most once per `delayMs`. A `beforeunload`
+ * flush guarantees the final state is never lost.
+ */
+function throttledStorage(delayMs: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let pendingKey: string | null = null;
+  let pendingValue: string | null = null;
+
+  const flush = () => {
+    if (pendingKey !== null && pendingValue !== null) {
+      localStorage.setItem(pendingKey, pendingValue);
+    }
+    pendingKey = null;
+    pendingValue = null;
+    timer = null;
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', flush);
+  }
+
+  return {
+    getItem: (key: string) => localStorage.getItem(key),
+    setItem: (key: string, value: string) => {
+      pendingKey = key;
+      pendingValue = value;
+      if (timer) return;
+      timer = setTimeout(flush, delayMs);
+    },
+    removeItem: (key: string) => {
+      pendingKey = null;
+      pendingValue = null;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      localStorage.removeItem(key);
+    },
+  };
+}
+
 export function makeConversation(
   opts?: Partial<Pick<Conversation, 'model' | 'systemPrompt' | 'params'>>,
 ): Conversation {
@@ -237,7 +283,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'ollama-webui:chats',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => throttledStorage(1000)),
       version: 3,
       migrate: (persisted: unknown, version: number) => {
         if (!persisted || typeof persisted !== 'object') return persisted;
