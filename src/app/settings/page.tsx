@@ -567,14 +567,22 @@ function InstallAppSection() {
           <div>
             <p className="text-sm font-medium text-content">Install as an app</p>
             <p className="text-xs text-content-muted">
-              This browser doesn&apos;t support app installation, or the app is already installed.
+              The install button will appear here automatically once Chrome detects this app is
+              installable (usually after a few seconds of browsing).
             </p>
           </div>
         </div>
+        <div className="rounded-xl border border-border/50 bg-border/5 p-3 text-xs text-content-subtle">
+          <p className="mb-1 font-medium text-content-muted">Manual install:</p>
+          <ul className="list-inside list-disc space-y-0.5">
+            <li><b>Chrome/Edge (Android):</b> Menu (⋮) → Install app</li>
+            <li><b>Chrome/Edge (Desktop):</b> Menu (⋮) → Install {`\u201C`}Ollama Chat{`\u201D`}</li>
+            <li><b>Safari (iOS):</b> Share → Add to Home Screen</li>
+          </ul>
+        </div>
         <p className="text-xs text-content-subtle">
-          On Chrome or Edge (Android/desktop), the install button appears here automatically once
-          the browser detects the app is installable. Make sure you&apos;re using a supported browser
-          and the page has finished loading.
+          Tip: run <code className="text-accent-soft">npm run build && npm run start</code> for the
+          best PWA experience — the dev server sometimes delays the install prompt.
         </p>
       </div>
     );

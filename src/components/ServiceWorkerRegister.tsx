@@ -7,11 +7,13 @@ import { useEffect } from 'react';
  * The SW is a pass-through (no caching) — it exists solely to make the app
  * meet the PWA installability criteria. Registration is deferred to
  * `onload` so it never blocks first paint or TTI.
+ *
+ * We register in dev too (on localhost) so the install button works while
+ * testing — Chrome treats localhost as a secure context for PWA purposes.
  */
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
-    if (process.env.NODE_ENV !== 'production') return; // skip in dev to avoid HMR issues
 
     const register = () => {
       navigator.serviceWorker.register('/sw.js').catch(() => {
