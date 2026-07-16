@@ -11,6 +11,14 @@ const TAG_PATHS = ['/api/tags', '/api/models'];
 const CHAT_PATHS = ['/api/chat', '/api/chat/stream'];
 const SHOW_PATHS = ['/api/show'];
 
+/**
+ * Sent on every upstream request. ngrok's free tier serves an HTML browser-
+ * warning interstitial for requests without this header; that HTML then arrives
+ * where the client expects JSON/NDJSON. Cloudflare Tunnels and a bare Ollama
+ * server ignore the unknown header, so it's safe to send unconditionally.
+ */
+const TUNNEL_HEADERS = { 'ngrok-skip-browser-warning': 'true' } as const;
+
 function url(path: string): string {
   const base = getBridgeTarget();
   if (!base) throw new BridgeError('Ollama target not configured on the server.', 500);
@@ -19,9 +27,10 @@ function url(path: string): string {
 
 /** Try each candidate path until one responds without 404/405. */
 async function fetchFallback(paths: string[], init: RequestInit): Promise<Response> {
+  const merged: RequestInit = { ...init, headers: { ...TUNNEL_HEADERS, ...init.headers } };
   let last: Response | null = null;
   for (const p of paths) {
-    const res = await fetch(url(p), init);
+    const res = await fetch(url(p), merged);
     if (res.ok) return res;
     if (res.status === 404 || res.status === 405) {
       last = res;

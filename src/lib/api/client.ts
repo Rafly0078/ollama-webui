@@ -8,6 +8,15 @@ import type {
   RawModel,
 } from './types';
 
+/**
+ * Sent on every upstream request. ngrok's free tier injects an HTML browser-
+ * warning interstitial for requests without this header, which arrives where we
+ * expect JSON/NDJSON and blows up parsing ("Unexpected token '<'"). Cloudflare
+ * Tunnels and a bare Ollama server ignore the unknown header, so it's safe to
+ * send unconditionally.
+ */
+const TUNNEL_HEADERS = { 'ngrok-skip-browser-warning': 'true' } as const;
+
 /** Combine an external signal with an internal timeout. */
 function withTimeout(ms: number, external?: AbortSignal): { signal: AbortSignal; cancel: () => void } {
   const ctrl = new AbortController();
@@ -106,7 +115,7 @@ export async function fetchModels(signal?: AbortSignal): Promise<ModelInfo[]> {
   try {
     const { res } = await fetchWithFallback(API_TAG_PATHS, {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', ...TUNNEL_HEADERS },
       signal: s,
     });
     await assertOk(res);
@@ -140,7 +149,11 @@ export async function streamChat(
   try {
     const result = await fetchWithFallback(API_CHAT_PATHS, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/x-ndjson, text/event-stream' },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/x-ndjson, text/event-stream',
+        ...TUNNEL_HEADERS,
+      },
       body: JSON.stringify({ ...req, stream: true }),
       signal,
     });
@@ -174,7 +187,7 @@ export async function chat(req: ChatRequest, signal?: AbortSignal): Promise<stri
   try {
     const { res } = await fetchWithFallback(API_CHAT_PATHS, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...TUNNEL_HEADERS },
       body: JSON.stringify({ ...req, stream: false }),
       signal: s,
     });
@@ -192,7 +205,11 @@ export async function chat(req: ChatRequest, signal?: AbortSignal): Promise<stri
 export async function ping(signal?: AbortSignal): Promise<boolean> {
   const { signal: s, cancel } = withTimeout(8000, signal);
   try {
-    const { res } = await fetchWithFallback(API_TAG_PATHS, { method: 'GET', signal: s });
+    const { res } = await fetchWithFallback(API_TAG_PATHS, {
+      method: 'GET',
+      headers: { ...TUNNEL_HEADERS },
+      signal: s,
+    });
     return res.ok;
   } catch {
     return false;
