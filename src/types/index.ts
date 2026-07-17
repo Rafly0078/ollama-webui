@@ -101,8 +101,12 @@ export interface OllamaModelDetails {
 export interface ModelInfo {
   /** Unique model id / tag, e.g. "llama3.2:latest". */
   name: string;
-  /** Human label. */
+  /** Human label. Owner-curated display name when set, else derived from name. */
   label: string;
+  /** True when `label` comes from an owner-curated override (not the raw name). */
+  customLabel?: boolean;
+  /** Optional owner-authored description shown in the picker. */
+  description?: string;
   /** Size on disk in bytes. */
   size?: number;
   /** Context length in tokens if known (from /api/show). */

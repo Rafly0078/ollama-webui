@@ -187,6 +187,17 @@ export type ActivityLogRow = {
   created_at: Timestamptz;
 }
 
+/** Owner-curated display names for models. Publicly readable; owner-only writes. */
+export type ModelLabelRow = {
+  model_name: string;
+  display_name: string;
+  description: string | null;
+  hidden: boolean;
+  sort_order: number;
+  created_at: Timestamptz;
+  updated_at: Timestamptz;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -266,6 +277,11 @@ export interface Database {
         ActivityLogRow,
         WithDefaults<ActivityLogRow, 'id' | 'target' | 'metadata' | 'created_at'>,
         Partial<ActivityLogRow>
+      >;
+      model_labels: Table<
+        ModelLabelRow,
+        WithDefaults<ModelLabelRow, 'description' | 'hidden' | 'sort_order' | 'created_at' | 'updated_at'>,
+        Partial<ModelLabelRow>
       >;
     };
     Views: Record<string, never>;
