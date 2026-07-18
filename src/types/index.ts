@@ -77,6 +77,19 @@ export interface GenerationParams {
   maxTokens: number;
 }
 
+/**
+ * A compacted memory of earlier turns. `text` is the model-written summary;
+ * `upToMessageId` marks the last message folded into it, so only messages
+ * created after it are still sent verbatim. `tokensAtSummary` records the
+ * estimated size of the compacted span (for debugging / the UI).
+ */
+export interface ConversationSummary {
+  text: string;
+  upToMessageId: string;
+  createdAt: number;
+  tokensAtSummary?: number;
+}
+
 export interface Conversation {
   id: string;
   title: string;
@@ -86,6 +99,13 @@ export interface Conversation {
   params: GenerationParams;
   /** Extended thinking configuration (Ollama `think` parameter). */
   thinking: ThinkingConfig;
+  /**
+   * Running summary of the messages that have been compacted out of the live
+   * context to keep long conversations within the model's window. Injected as a
+   * system message and refreshed as the chat grows. Absent until the first
+   * compaction happens.
+   */
+  summary?: ConversationSummary;
   pinned: boolean;
   createdAt: number;
   updatedAt: number;

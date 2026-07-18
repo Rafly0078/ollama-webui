@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Conversation, GenerationParams, Message, ThinkingConfig, ThinkingEffort } from '@/types';
+import type {
+  Conversation,
+  ConversationSummary,
+  GenerationParams,
+  Message,
+  ThinkingConfig,
+  ThinkingEffort,
+} from '@/types';
 import { uid } from '@/lib/utils/id';
 import { DEFAULT_PARAMS, DEFAULT_SYSTEM_PROMPT, DEFAULT_THINKING } from './defaults';
 
@@ -25,6 +32,8 @@ interface ChatState {
   setConversationSystemPrompt: (id: string, prompt: string) => void;
   setConversationParams: (id: string, patch: Partial<GenerationParams>) => void;
   setConversationThinking: (id: string, patch: Partial<ThinkingConfig>) => void;
+  /** Store/replace the running context summary (compaction). Pass null to clear. */
+  setConversationSummary: (id: string, summary: ConversationSummary | null) => void;
 
   addMessage: (convoId: string, msg: Message) => void;
   appendToMessage: (convoId: string, msgId: string, delta: string) => void;
@@ -152,7 +161,7 @@ export const useChatStore = create<ChatState>()(
       clearMessages: (id) =>
         set((s) => ({
           conversations: s.conversations.map((c) =>
-            c.id === id ? touch({ ...c, messages: [] }) : c,
+            c.id === id ? touch({ ...c, messages: [], summary: undefined }) : c,
           ),
         })),
 
@@ -197,6 +206,13 @@ export const useChatStore = create<ChatState>()(
         set((s) => ({
           conversations: s.conversations.map((c) =>
             c.id === id ? touch({ ...c, thinking: { ...c.thinking, ...patch } }) : c,
+          ),
+        })),
+
+      setConversationSummary: (id, summary) =>
+        set((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === id ? { ...c, summary: summary ?? undefined } : c,
           ),
         })),
 

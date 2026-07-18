@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import type { Conversation } from '@/types';
 import { MessageBubble, type MessageActions } from './MessageBubble';
+import { CompactionBadge } from './CompactionBadge';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { useAutoScroll } from '@/lib/hooks/use-auto-scroll';
 
@@ -14,6 +15,7 @@ interface Props {
 
 export function MessageList({ conversation, generating, actions }: Props) {
   const messages = conversation.messages;
+  const summary = conversation.summary;
   // Depend on the last message's content length so streaming keeps us pinned.
   const last = messages[messages.length - 1];
   const scrollDep = `${messages.length}:${last?.content.length ?? 0}`;
@@ -37,13 +39,17 @@ export function MessageList({ conversation, generating, actions }: Props) {
       >
         <div className="pb-4 pt-2">
           {messages.map((msg, i) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              isLast={i === messages.length - 1}
-              generating={generating}
-              actions={actions}
-            />
+            <div key={msg.id}>
+              <MessageBubble
+                message={msg}
+                isLast={i === messages.length - 1}
+                generating={generating}
+                actions={actions}
+              />
+              {summary?.upToMessageId === msg.id && (
+                <CompactionBadge text={summary.text} createdAt={summary.createdAt} />
+              )}
+            </div>
           ))}
         </div>
       </div>

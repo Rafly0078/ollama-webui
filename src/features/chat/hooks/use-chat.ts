@@ -14,6 +14,12 @@ import type { Artifact } from '@/lib/tools/types';
 import { searchWeb } from '@/lib/search/client';
 import { formatSearchContext, mergeSearchResponses, toSources } from '@/lib/search/format';
 import { buildPlanMessages, parsePlan, fallbackPlan, type SearchPlan } from '@/lib/search/plan';
+import {
+  buildSummaryMessages,
+  estimateHistoryTokens,
+  planCompaction,
+  stillOverBudget,
+} from '@/lib/context/compaction';
 import { useToast } from '@/components/ui/toast';
 
 /**
@@ -54,6 +60,9 @@ function metricsFromChunk(final: ChatStreamChunk, startedAt: number) {
 export function useChat(conversationId: string | null) {
   const store = useChatStore;
   const executingRef = useRef<Set<string>>(new Set());
+  // Conversation id we've already shown the "over context window" warning for,
+  // so it fires once rather than on every over-budget turn.
+  const overBudgetWarned = useRef<string | null>(null);
   const { toast } = useToast();
 
   /** Detect artifact directives in a completed message and execute them. */
@@ -172,6 +181,61 @@ export function useChat(conversationId: string | null) {
       const searchContext =
         opts?.searchContext ?? (assistantMsg?.metadata?.searchContext as string | undefined);
 
+      // Context compaction — before sending, if the estimated prompt exceeds a
+      // fraction of the model's window, condense older turns into a running
+      // summary so the model keeps the memory at a fraction of the token cost.
+      // Failures here are non-fatal: we just send the full history as before.
+      let summary = convo.summary;
+      try {
+        const plan = planCompaction(history, convo.systemPrompt, convo.params.contextLength, summary);
+        if (plan) {
+          const text = await chat(
+            {
+              model: convo.model,
+              messages: buildSummaryMessages(plan.toSummarize, summary),
+              think: false, // the summary body must be clean prose, no reasoning tokens
+            },
+            controller.signal,
+          );
+          if (text.trim()) {
+            summary = {
+              text: text.trim(),
+              upToMessageId: plan.upToMessageId,
+              createdAt: Date.now(),
+              tokensAtSummary: estimateHistoryTokens(plan.toSummarize, ''),
+            };
+            store.getState().setConversationSummary(convoId, summary);
+          }
+        }
+
+        // Even after compacting all it can, the prompt may still exceed the
+        // hard window — this happens when the most recent messages that must
+        // stay verbatim (e.g. a code paste bigger than num_ctx) are themselves
+        // larger than the window. No summary can fix that, so warn the user
+        // rather than let Ollama silently truncate. Fire at most once per
+        // conversation until the situation clears, so it doesn't nag each turn.
+        if (stillOverBudget(history, convo.systemPrompt, convo.params.contextLength, summary)) {
+          if (overBudgetWarned.current !== convoId) {
+            overBudgetWarned.current = convoId;
+            toast(
+              'This conversation is larger than the model’s context window. Raise Context Length in params, or split long code into smaller messages — older content may be dropped.',
+              'error',
+            );
+          }
+        } else if (overBudgetWarned.current === convoId) {
+          overBudgetWarned.current = null;
+        }
+      } catch (err) {
+        // Aborting the generation also aborts the summary request — propagate
+        // that so we don't then fire a doomed stream; other errors are ignored.
+        if (err instanceof ApiError && err.kind === 'aborted') {
+          s.updateMessage(convoId, assistantId, { streaming: false });
+          s.setGenerating(null);
+          if (activeController === controller) activeController = null;
+          return;
+        }
+      }
+
       // Build request — the effort level is sent verbatim as Ollama's `think`
       // parameter ("low" | "medium" | "high" | "max") when thinking is enabled.
       const options = toApiOptions(convo.params);
@@ -225,7 +289,7 @@ export function useChat(conversationId: string | null) {
         await streamChat(
           {
             model: convo.model,
-            messages: toApiMessages(history, convo.systemPrompt, searchContext),
+            messages: toApiMessages(history, convo.systemPrompt, searchContext, summary),
             options,
             ...(thinkingEnabled ? { think: convo.thinking.effort } : {}),
           },
@@ -304,7 +368,7 @@ export function useChat(conversationId: string | null) {
         store.getState().setGenerating(null);
       }
     },
-    [store, processArtifacts, processPatches],
+    [store, processArtifacts, processPatches, toast],
   );
 
   /**

@@ -42,6 +42,24 @@ export function estimateTokens(text: string): number {
   return Math.max(byChars, byWords);
 }
 
+/**
+ * Estimate the token cost of a single message the way it will be sent to the
+ * model: its text content plus any inlined attachment text. Image attachments
+ * are counted with a flat allowance since their real cost is model-specific.
+ * Used to decide when a conversation should be compacted.
+ */
+export function estimateMessageTokens(msg: {
+  content: string;
+  attachments?: { text?: string; base64?: string }[];
+}): number {
+  let total = estimateTokens(msg.content);
+  for (const att of msg.attachments ?? []) {
+    if (att.text) total += estimateTokens(att.text);
+    else if (att.base64) total += 768; // flat allowance for a vision image
+  }
+  return total;
+}
+
 export function relativeTime(ts: number): string {
   const diff = Date.now() - ts;
   const sec = Math.round(diff / 1000);

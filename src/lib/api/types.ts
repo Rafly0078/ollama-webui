@@ -1,4 +1,4 @@
-import type { GenerationParams, Message } from '@/types';
+import type { ConversationSummary, GenerationParams, Message } from '@/types';
 import { TOOL_INSTRUCTIONS } from '@/lib/tools/prompt';
 import { PATCH_INSTRUCTIONS } from '@/lib/tools/patch-prompt';
 
@@ -78,6 +78,7 @@ export function toApiMessages(
   messages: Message[],
   systemPrompt: string,
   searchContext?: string,
+  summary?: ConversationSummary,
 ): ApiChatMessage[] {
   const out: ApiChatMessage[] = [];
   // TOOL_INSTRUCTIONS is always included — even conversations created before
@@ -88,10 +89,25 @@ export function toApiMessages(
     .join('\n\n');
   if (combinedSystem) out.push({ role: 'system', content: combinedSystem });
 
-  const lastUserIdx = messages.map((m) => m.role).lastIndexOf('user');
+  // Compaction: when a running summary exists, prepend it as a system message
+  // and drop every message up to and including the one it was summarized
+  // through — the model keeps the memory at a fraction of the token cost. If
+  // the marker message is no longer present (e.g. a mid-history edit), fall
+  // back to sending everything so nothing is silently lost.
+  let effective = messages;
+  if (summary?.text) {
+    out.push({
+      role: 'system',
+      content: `Summary of the earlier conversation (older messages have been condensed to save context; treat this as prior memory):\n\n${summary.text}`,
+    });
+    const cutoff = messages.findIndex((m) => m.id === summary.upToMessageId);
+    if (cutoff !== -1) effective = messages.slice(cutoff + 1);
+  }
 
-  for (let i = 0; i < messages.length; i++) {
-    const m = messages[i]!;
+  const lastUserIdx = effective.map((m) => m.role).lastIndexOf('user');
+
+  for (let i = 0; i < effective.length; i++) {
+    const m = effective[i]!;
     if (m.role === 'system') continue;
     if (m.error) continue;
     const images: string[] = [];
