@@ -72,6 +72,8 @@ export default function SettingsPage() {
       animatedBackground: s.animatedBackground,
       sendOnEnter: s.sendOnEnter,
       showTokenCounter: s.showTokenCounter,
+      sandboxAutoHeal: s.sandboxAutoHeal,
+      sandboxMaxIterations: s.sandboxMaxIterations,
     };
     downloadText('ollama-webui-settings.json', JSON.stringify(payload, null, 2), 'application/json');
     toast('Settings exported', 'success');
@@ -312,6 +314,23 @@ export default function SettingsPage() {
             <Slider label="Repeat penalty" value={s.defaultParams.repeatPenalty} min={0.8} max={2} step={0.01} onChange={(v) => s.setDefaultParams({ repeatPenalty: v })} format={(v) => v.toFixed(2)} />
             <Slider label="Context length" value={s.defaultParams.contextLength} min={512} max={131072} step={512} onChange={(v) => s.setDefaultParams({ contextLength: v })} />
             <Slider label="Max tokens" value={s.defaultParams.maxTokens} min={-1} max={8192} step={1} onChange={(v) => s.setDefaultParams({ maxTokens: v })} />
+          </div>
+
+          <div className="mt-6 space-y-4 border-t border-border/60 pt-5">
+            <ToggleRow
+              label="Auto-audit & perbaiki kode"
+              description="Setelah kode web (HTML/CSS/JS) selesai dibuat, jalankan di sandbox, deteksi error, lalu minta model memperbaikinya otomatis sampai bersih. Membuat panggilan model tambahan."
+              checked={s.sandboxAutoHeal}
+              onChange={() => s.toggle('sandboxAutoHeal')}
+            />
+            <Slider
+              label="Maksimum iterasi perbaikan"
+              value={s.sandboxMaxIterations}
+              min={1}
+              max={8}
+              step={1}
+              onChange={(v) => s.setSandboxMaxIterations(v)}
+            />
           </div>
         </Section>
         )}

@@ -26,6 +26,11 @@ export interface SettingsState {
   animatedBackground: boolean;
   sendOnEnter: boolean; // Enter sends; Shift+Enter newline. If false, Ctrl+Enter sends.
   showTokenCounter: boolean;
+  /** Auto-audit web code (HTML/CSS/JS) in a sandbox and let the model fix its
+   *  own runtime errors. Off by default — it makes extra model calls. */
+  sandboxAutoHeal: boolean;
+  /** Max heal iterations per run before giving up. */
+  sandboxMaxIterations: number;
 
   setTheme: (t: ThemeMode) => void;
   setAccent: (a: string) => void;
@@ -37,7 +42,10 @@ export interface SettingsState {
   addPreset: (p: PromptPreset) => void;
   updatePreset: (id: string, patch: Partial<PromptPreset>) => void;
   removePreset: (id: string) => void;
-  toggle: (key: 'animatedBackground' | 'sendOnEnter' | 'showTokenCounter') => void;
+  toggle: (
+    key: 'animatedBackground' | 'sendOnEnter' | 'showTokenCounter' | 'sandboxAutoHeal',
+  ) => void;
+  setSandboxMaxIterations: (n: number) => void;
   importSettings: (data: Partial<SettingsState>) => void;
   reset: () => void;
 }
@@ -54,6 +62,8 @@ const initial = {
   animatedBackground: true,
   sendOnEnter: true,
   showTokenCounter: true,
+  sandboxAutoHeal: false,
+  sandboxMaxIterations: 3,
 };
 
 export const useSettings = create<SettingsState>()(
@@ -75,6 +85,8 @@ export const useSettings = create<SettingsState>()(
         })),
       removePreset: (id) => set((s) => ({ presets: s.presets.filter((x) => x.id !== id) })),
       toggle: (key) => set((s) => ({ [key]: !s[key] }) as Partial<SettingsState>),
+      setSandboxMaxIterations: (n) =>
+        set({ sandboxMaxIterations: Math.max(1, Math.min(8, Math.round(n))) }),
       importSettings: (data) => set((s) => ({ ...s, ...data })),
       reset: () => set(initial),
     }),

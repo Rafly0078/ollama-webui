@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { AnimatePresence, m } from 'framer-motion';
 import {
   AlertCircle,
@@ -21,6 +21,8 @@ import type { Message, ThinkingEffort } from '@/types';
 import type { Source } from '@/lib/search/types';
 import { Markdown } from '@/components/markdown/Markdown';
 import { Tooltip } from '@/components/ui/tooltip';
+import { SandboxPanel } from '@/features/sandbox/SandboxPanel';
+import { extractWebSource } from '@/lib/sandbox/compose';
 import { TypingIndicator } from './TypingIndicator';
 import { formatDuration, formatNumber } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
@@ -39,6 +41,7 @@ interface Props {
   isLast: boolean;
   generating: boolean;
   actions: MessageActions;
+  conversationId: string;
 }
 
 function MetricPill({ label, value }: { label: string; value: string }) {
@@ -55,6 +58,7 @@ export const MessageBubble = memo(function MessageBubble({
   isLast,
   generating,
   actions,
+  conversationId,
 }: Props) {
   const isUser = message.role === 'user';
   const [editing, setEditing] = useState(false);
@@ -74,6 +78,17 @@ export const MessageBubble = memo(function MessageBubble({
 
   const showActions = !message.streaming && !editing;
   const canContinue = !isUser && isLast && !generating && !message.error && message.content.length > 0;
+
+  // Runnable web code (HTML/CSS/JS) in a finished assistant message gets a
+  // sandbox with an audit-and-fix loop. Skipped while streaming (the fences may
+  // be incomplete) and for user messages.
+  const webSource = useMemo(
+    () =>
+      !isUser && !message.streaming && !message.error
+        ? extractWebSource(message.content)
+        : null,
+    [isUser, message.streaming, message.error, message.content],
+  );
 
   // Web-search status/citations ride on metadata (set by useChat), so no new
   // Message field is needed. `searching` is true only while the query is in
@@ -235,6 +250,11 @@ export const MessageBubble = memo(function MessageBubble({
             <TypingIndicator />
           </div>
         ) : null}
+
+        {/* Sandbox: run + auto-fix the message's web code. */}
+        {webSource && (
+          <SandboxPanel conversationId={conversationId} source={webSource} />
+        )}
 
         {/* Metrics */}
         {!isUser && message.metrics && !message.streaming && (

@@ -45,6 +45,7 @@ export function MessageList({ conversation, generating, actions }: Props) {
                 isLast={i === messages.length - 1}
                 generating={generating}
                 actions={actions}
+                conversationId={conversation.id}
               />
               {summary?.upToMessageId === msg.id && (
                 <CompactionBadge text={summary.text} createdAt={summary.createdAt} />
