@@ -8,6 +8,7 @@ import createXlsx from './xlsx';
 import createCsv from './csv';
 import createTxt from './txt';
 import createMd from './md';
+import createHtml from './html';
 import createJson from './json';
 import createXml from './xml';
 import zipProject from './zip';
@@ -34,6 +35,7 @@ const registry = new Map<ToolName, ExecutorFn>([
   ['create_csv', createCsv],
   ['create_txt', createTxt],
   ['create_md', createMd],
+  ['create_html', createHtml],
   ['create_json', createJson],
   ['create_xml', createXml],
   ['zip_project', zipProject],

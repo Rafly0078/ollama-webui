@@ -74,7 +74,10 @@ export function useChat(conversationId: string | null) {
       if (executingRef.current.has(messageId)) return;
       executingRef.current.add(messageId);
 
-      // Strip artifact blocks from displayed content
+      // Strip artifact blocks from displayed content. Keep the original so we
+      // can put it back if execution fails — otherwise a failed directive (e.g.
+      // an unregistered tool) leaves a permanently blank message, since the
+      // content was often ENTIRELY the artifact block ("return only the file").
       store.getState().updateMessage(convoId, messageId, { content: cleaned });
 
       const results = await Promise.allSettled(
@@ -84,7 +87,16 @@ export function useChat(conversationId: string | null) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ...req, conversationId: convoId, messageId }),
           });
-          if (!res.ok) throw new Error(`Tool execution failed (${res.status})`);
+          if (!res.ok) {
+            let detail = `Tool execution failed (${res.status})`;
+            try {
+              const body = (await res.json()) as { error?: string };
+              if (body.error) detail = body.error;
+            } catch {
+              /* non-JSON error body */
+            }
+            throw new Error(detail);
+          }
           const { artifact } = (await res.json()) as { artifact: Artifact };
           return artifact;
         }),
@@ -101,9 +113,22 @@ export function useChat(conversationId: string | null) {
           });
         }
       }
+
+      // Every directive failed — the stripped content would otherwise be gone
+      // for good. Restore the raw message so the user still sees the code, and
+      // surface why (the failure is silent server-side otherwise).
+      if (artifacts.length === 0) {
+        store.getState().updateMessage(convoId, messageId, { content });
+        const reason = results.find(
+          (r): r is PromiseRejectedResult => r.status === 'rejected',
+        )?.reason;
+        const detail = reason instanceof Error ? reason.message : 'Tool execution failed.';
+        toast(`Couldn't generate the file: ${detail}`, 'error');
+      }
+
       executingRef.current.delete(messageId);
     },
-    [store],
+    [store, toast],
   );
 
   /**
